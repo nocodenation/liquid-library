@@ -21,7 +21,6 @@ class GetYouTubeVideo(FlowFileTransform):
         Note: Downloading large videos consumes memory as the content is returned in the result.
         """
         tags = ['youtube', 'video', 'download', 'mp4', 'yt-dlp']
-        dependencies = ['yt-dlp']
 
     def __init__(self, **kwargs):
         pass

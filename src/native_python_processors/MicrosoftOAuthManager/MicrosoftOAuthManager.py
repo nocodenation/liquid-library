@@ -24,7 +24,6 @@ class MicrosoftOAuthManager(FlowFileTransform):
         suitable for use by the GetMicrosoftMail processor.
         """
         tags = ['microsoft', 'graph', 'oauth', 'auth', 'token', 'helper']
-        dependencies = ['msal', 'requests']
 
     def __init__(self, **kwargs):
         pass

@@ -21,7 +21,6 @@ class ExtractAudioFromVideo(FlowFileTransform):
         Requires: FFmpeg installed on the system.
         """
         tags = ['audio', 'extract', 'video', 'ffmpeg', 'python']
-        dependencies = ['ffmpeg-python']
 
     def __init__(self, **kwargs):
         pass

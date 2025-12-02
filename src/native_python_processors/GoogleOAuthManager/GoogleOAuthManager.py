@@ -24,7 +24,6 @@ class GoogleOAuthManager(FlowFileTransform):
         2. EXCHANGE_CODE: Exchanges the authorization code (received in callback) for access/refresh tokens.
         """
         tags = ['google', 'oauth', 'auth', 'token', 'helper']
-        dependencies = ['google-auth-oauthlib', 'requests']
 
     def __init__(self, **kwargs):
         pass

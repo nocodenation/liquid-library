@@ -18,7 +18,6 @@ class GenerateEmbedding(FlowFileTransform):
         Output: The vector embedding as a JSON array string (either in content or attribute).
         """
         tags = ['openai', 'embedding', 'vector', 'rag', 'python']
-        dependencies = ['openai']
 
     def __init__(self, **kwargs):
         pass
