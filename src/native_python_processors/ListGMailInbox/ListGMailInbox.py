@@ -25,7 +25,7 @@ class ListGMailInbox(FlowFileTransform):
           - 'List' mode: Single FlowFile containing a JSON array of all emails found.
         Does not fetch the full email body/payload. Use 'FetchGoogleMail' (to be created) for full content."""
         tags = ['google', 'gmail', 'email', 'list', 'python']
-        dependencies = ['google-api-python-client==2.187.0', 'google-auth-oauthlib==1.2.3']
+        dependencies = ['google-api-python-client', 'google-auth-oauthlib']
 
     def __init__(self, **kwargs):
         self.service = None

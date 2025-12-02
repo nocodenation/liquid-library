@@ -23,7 +23,7 @@ class FetchGMailMessage(FlowFileTransform):
         Output: The full email content (JSON metadata + Body, or Raw RFC822).
         """
         tags = ['google', 'gmail', 'email', 'fetch', 'python']
-        dependencies = ['google-api-python-client==2.187.0', 'google-auth-oauthlib==1.2.3']
+        dependencies = ['google-api-python-client', 'google-auth-oauthlib']
 
     def __init__(self, **kwargs):
         self.service = None

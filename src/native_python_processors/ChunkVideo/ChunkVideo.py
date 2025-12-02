@@ -137,7 +137,7 @@ class ChunkVideo(FlowFileTransform):
         User should follow this with SplitJson -> FetchFile (with Completion Strategy 'Delete File').
         """
         tags = ['video', 'split', 'chunk', 'ffmpeg', 'python']
-        dependencies = ['ffmpeg-python==0.2.0']
+        dependencies = ['ffmpeg-python']
 
     def __init__(self, **kwargs):
         pass
