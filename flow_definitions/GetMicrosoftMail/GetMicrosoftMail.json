@@ -1,0 +1,162 @@
+{
+  "flowContents": {
+    "identifier": "0b0d3f50-8e47-3774-a058-6020554e975e",
+    "instanceIdentifier": "ca705b96-019a-1000-dd42-112c36d991ca",
+    "name": "GetMicrosoftMail",
+    "comments": "",
+    "position": {
+      "x": 232.0,
+      "y": -168.0
+    },
+    "processGroups": [],
+    "remoteProcessGroups": [],
+    "processors": [
+      {
+        "identifier": "bfc41dc1-2080-3d65-8331-92090f402676",
+        "instanceIdentifier": "29961f83-c3b7-3984-5181-7fcf43649ea5",
+        "name": "GetMicrosoftMail",
+        "comments": "",
+        "position": {
+          "x": 232.0,
+          "y": 136.0
+        },
+        "type": "GetMicrosoftMail",
+        "bundle": {
+          "group": "org.apache.nifi",
+          "artifact": "python-extensions",
+          "version": "0.0.1-SNAPSHOT"
+        },
+        "properties": {
+          "Filter Query": "isRead eq false",
+          "Token File Path": "/files/MicrosoftOAuthManager/microsoft-token.json",
+          "Output Format": "JSON",
+          "Folder ID": "Inbox",
+          "Mark as Read": "false"
+        },
+        "propertyDescriptors": {
+          "Filter Query": {
+            "name": "Filter Query",
+            "displayName": "Filter Query",
+            "identifiesControllerService": false,
+            "sensitive": false,
+            "dynamic": false
+          },
+          "Token File Path": {
+            "name": "Token File Path",
+            "displayName": "Token File Path",
+            "identifiesControllerService": false,
+            "sensitive": false,
+            "dynamic": false
+          },
+          "Output Format": {
+            "name": "Output Format",
+            "displayName": "Output Format",
+            "identifiesControllerService": false,
+            "sensitive": false,
+            "dynamic": false
+          },
+          "Folder ID": {
+            "name": "Folder ID",
+            "displayName": "Folder ID",
+            "identifiesControllerService": false,
+            "sensitive": false,
+            "dynamic": false
+          },
+          "Mark as Read": {
+            "name": "Mark as Read",
+            "displayName": "Mark as Read",
+            "identifiesControllerService": false,
+            "sensitive": false,
+            "dynamic": false
+          }
+        },
+        "style": {},
+        "schedulingPeriod": "1 min",
+        "schedulingStrategy": "TIMER_DRIVEN",
+        "executionNode": "ALL",
+        "penaltyDuration": "30 sec",
+        "yieldDuration": "1 sec",
+        "bulletinLevel": "WARN",
+        "runDurationMillis": 0,
+        "concurrentlySchedulableTaskCount": 1,
+        "autoTerminatedRelationships": [],
+        "scheduledState": "ENABLED",
+        "retryCount": 10,
+        "retriedRelationships": [],
+        "backoffMechanism": "PENALIZE_FLOWFILE",
+        "maxBackoffPeriod": "10 mins",
+        "componentType": "PROCESSOR",
+        "groupIdentifier": "0b0d3f50-8e47-3774-a058-6020554e975e"
+      }
+    ],
+    "inputPorts": [],
+    "outputPorts": [],
+    "connections": [
+      {
+        "identifier": "0cf34803-e095-3f72-818b-ac51489d3f60",
+        "instanceIdentifier": "453141d9-ced4-3b60-352e-af6f79ddb510",
+        "name": "",
+        "source": {
+          "id": "bfc41dc1-2080-3d65-8331-92090f402676",
+          "type": "PROCESSOR",
+          "groupId": "0b0d3f50-8e47-3774-a058-6020554e975e",
+          "name": "GetMicrosoftMail",
+          "comments": "",
+          "instanceIdentifier": "29961f83-c3b7-3984-5181-7fcf43649ea5"
+        },
+        "destination": {
+          "id": "e9fe2ff2-8c64-37b4-b56e-f1b65a4b87d8",
+          "type": "FUNNEL",
+          "groupId": "0b0d3f50-8e47-3774-a058-6020554e975e",
+          "name": "Funnel",
+          "comments": "",
+          "instanceIdentifier": "576a7783-f09a-3931-a067-9585f35ff632"
+        },
+        "labelIndex": 0,
+        "zIndex": 1,
+        "selectedRelationships": [
+          "success"
+        ],
+        "backPressureObjectThreshold": 10000,
+        "backPressureDataSizeThreshold": "1 GB",
+        "flowFileExpiration": "0 sec",
+        "prioritizers": [],
+        "bends": [],
+        "loadBalanceStrategy": "DO_NOT_LOAD_BALANCE",
+        "partitioningAttribute": "",
+        "loadBalanceCompression": "DO_NOT_COMPRESS",
+        "componentType": "CONNECTION",
+        "groupIdentifier": "0b0d3f50-8e47-3774-a058-6020554e975e"
+      }
+    ],
+    "labels": [],
+    "funnels": [
+      {
+        "identifier": "e9fe2ff2-8c64-37b4-b56e-f1b65a4b87d8",
+        "instanceIdentifier": "576a7783-f09a-3931-a067-9585f35ff632",
+        "position": {
+          "x": 384.0,
+          "y": 384.0
+        },
+        "componentType": "FUNNEL",
+        "groupIdentifier": "0b0d3f50-8e47-3774-a058-6020554e975e"
+      }
+    ],
+    "controllerServices": [],
+    "defaultFlowFileExpiration": "0 sec",
+    "defaultBackPressureObjectThreshold": 10000,
+    "defaultBackPressureDataSizeThreshold": "1 GB",
+    "scheduledState": "ENABLED",
+    "executionEngine": "INHERITED",
+    "maxConcurrentTasks": 1,
+    "statelessFlowTimeout": "1 min",
+    "flowFileConcurrency": "UNBOUNDED",
+    "flowFileOutboundPolicy": "STREAM_WHEN_AVAILABLE",
+    "componentType": "PROCESS_GROUP"
+  },
+  "externalControllerServices": {},
+  "parameterContexts": {},
+  "flowEncodingVersion": "1.0",
+  "parameterProviders": {},
+  "latest": false
+}
