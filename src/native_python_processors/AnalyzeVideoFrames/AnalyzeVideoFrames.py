@@ -22,7 +22,7 @@ class AnalyzeVideoFrames(FlowFileTransform):
         Output: Text description of the video content.
         """
         tags = ['vision', 'video', 'analysis', 'openai', 'python']
-        dependencies = ['openai', 'opencv-python', 'numpy']
+        dependencies = ['openai==2.8.1', 'opencv-python==4.12.0.88', 'numpy==2.3.5']
 
     def __init__(self, **kwargs):
         pass

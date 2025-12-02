@@ -20,7 +20,7 @@ class TranscribeAudio(FlowFileTransform):
         Output: Transcription text.
         """
         tags = ['audio', 'transcription', 'openai', 'whisper', 'python']
-        dependencies = ['openai']
+        dependencies = ['openai==2.8.1']
 
     def __init__(self, **kwargs):
         pass

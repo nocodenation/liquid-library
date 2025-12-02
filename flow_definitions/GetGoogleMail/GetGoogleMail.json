@@ -1,1 +1,154 @@
-{"flowContents":{"identifier":"925609cd-818d-3bf8-b079-24150093857b","instanceIdentifier":"b1805710-019a-1000-642a-a7f07e1ebee0","name":"GetGoogleMail","comments":"","position":{"x":136.0,"y":-416.0},"processGroups":[],"remoteProcessGroups":[],"processors":[{"identifier":"c2684a15-6964-33ef-9447-3b4ac6c06cc2","instanceIdentifier":"b0807919-019a-1000-130d-d4ac9a40c1ab","name":"GetGoogleMail","comments":"","position":{"x":136.0,"y":-416.0},"type":"GetGoogleMail","bundle":{"group":"org.apache.nifi","artifact":"python-extensions","version":"0.0.1-SNAPSHOT"},"properties":{"Search Query":"is:unread","Token File Path":"/files/token.json","Output Format":"JSON","Mark as Read":"true"},"propertyDescriptors":{"Search Query":{"name":"Search Query","displayName":"Search Query","identifiesControllerService":false,"sensitive":false,"dynamic":false},"Token File Path":{"name":"Token File Path","displayName":"Token File Path","identifiesControllerService":false,"sensitive":false,"dynamic":false},"Output Format":{"name":"Output Format","displayName":"Output Format","identifiesControllerService":false,"sensitive":false,"dynamic":false},"Mark as Read":{"name":"Mark as Read","displayName":"Mark as Read","identifiesControllerService":false,"sensitive":false,"dynamic":false}},"style":{},"schedulingPeriod":"1 min","schedulingStrategy":"TIMER_DRIVEN","executionNode":"ALL","penaltyDuration":"30 sec","yieldDuration":"1 sec","bulletinLevel":"WARN","runDurationMillis":0,"concurrentlySchedulableTaskCount":1,"autoTerminatedRelationships":[],"scheduledState":"ENABLED","retryCount":10,"retriedRelationships":[],"backoffMechanism":"PENALIZE_FLOWFILE","maxBackoffPeriod":"10 mins","componentType":"PROCESSOR","groupIdentifier":"925609cd-818d-3bf8-b079-24150093857b"}],"inputPorts":[],"outputPorts":[],"connections":[{"identifier":"c6cd9bda-ac23-3149-bdd3-05b0b42338ab","instanceIdentifier":"b080c4e8-019a-1000-9c34-1c70875fae07","name":"","source":{"id":"c2684a15-6964-33ef-9447-3b4ac6c06cc2","type":"PROCESSOR","groupId":"925609cd-818d-3bf8-b079-24150093857b","name":"GetGoogleMail","comments":"","instanceIdentifier":"b0807919-019a-1000-130d-d4ac9a40c1ab"},"destination":{"id":"53a991ab-14bc-3bc9-9a49-8c30b1fa0b82","type":"FUNNEL","groupId":"925609cd-818d-3bf8-b079-24150093857b","name":"Funnel","comments":"","instanceIdentifier":"b08087e1-019a-1000-c598-c4fc2f1eb216"},"labelIndex":0,"zIndex":1,"selectedRelationships":["success"],"backPressureObjectThreshold":10000,"backPressureDataSizeThreshold":"1 GB","flowFileExpiration":"0 sec","prioritizers":[],"bends":[],"loadBalanceStrategy":"DO_NOT_LOAD_BALANCE","partitioningAttribute":"","loadBalanceCompression":"DO_NOT_COMPRESS","componentType":"CONNECTION","groupIdentifier":"925609cd-818d-3bf8-b079-24150093857b"}],"labels":[],"funnels":[{"identifier":"53a991ab-14bc-3bc9-9a49-8c30b1fa0b82","instanceIdentifier":"b08087e1-019a-1000-c598-c4fc2f1eb216","position":{"x":284.5,"y":-149.5},"componentType":"FUNNEL","groupIdentifier":"925609cd-818d-3bf8-b079-24150093857b"}],"controllerServices":[],"defaultFlowFileExpiration":"0 sec","defaultBackPressureObjectThreshold":10000,"defaultBackPressureDataSizeThreshold":"1 GB","scheduledState":"ENABLED","executionEngine":"INHERITED","maxConcurrentTasks":1,"statelessFlowTimeout":"1 min","flowFileConcurrency":"UNBOUNDED","flowFileOutboundPolicy":"STREAM_WHEN_AVAILABLE","componentType":"PROCESS_GROUP"},"externalControllerServices":{},"parameterContexts":{},"flowEncodingVersion":"1.0","parameterProviders":{},"latest":false}
+{
+  "flowContents": {
+    "identifier": "925609cd-818d-3bf8-b079-24150093857b",
+    "instanceIdentifier": "b1805710-019a-1000-642a-a7f07e1ebee0",
+    "name": "GetGoogleMail",
+    "comments": "",
+    "position": {
+      "x": 136.0,
+      "y": -416.0
+    },
+    "processGroups": [],
+    "remoteProcessGroups": [],
+    "processors": [
+      {
+        "identifier": "c2684a15-6964-33ef-9447-3b4ac6c06cc2",
+        "instanceIdentifier": "b0807919-019a-1000-130d-d4ac9a40c1ab",
+        "name": "GetGoogleMail",
+        "comments": "",
+        "position": {
+          "x": 136.0,
+          "y": -416.0
+        },
+        "type": "GetGoogleMail",
+        "bundle": {
+          "group": "org.apache.nifi",
+          "artifact": "python-extensions",
+          "version": "0.0.1-SNAPSHOT"
+        },
+        "properties": {
+          "Search Query": "is:unread",
+          "Token File Path": "/files/token.json",
+          "Output Format": "JSON",
+          "Mark as Read": "true"
+        },
+        "propertyDescriptors": {
+          "Search Query": {
+            "name": "Search Query",
+            "displayName": "Search Query",
+            "identifiesControllerService": false,
+            "sensitive": false,
+            "dynamic": false
+          },
+          "Token File Path": {
+            "name": "Token File Path",
+            "displayName": "Token File Path",
+            "identifiesControllerService": false,
+            "sensitive": false,
+            "dynamic": false
+          },
+          "Output Format": {
+            "name": "Output Format",
+            "displayName": "Output Format",
+            "identifiesControllerService": false,
+            "sensitive": false,
+            "dynamic": false
+          },
+          "Mark as Read": {
+            "name": "Mark as Read",
+            "displayName": "Mark as Read",
+            "identifiesControllerService": false,
+            "sensitive": false,
+            "dynamic": false
+          }
+        },
+        "style": {},
+        "schedulingPeriod": "1 min",
+        "schedulingStrategy": "TIMER_DRIVEN",
+        "executionNode": "ALL",
+        "penaltyDuration": "30 sec",
+        "yieldDuration": "1 sec",
+        "bulletinLevel": "WARN",
+        "runDurationMillis": 0,
+        "concurrentlySchedulableTaskCount": 1,
+        "autoTerminatedRelationships": [],
+        "scheduledState": "ENABLED",
+        "retryCount": 10,
+        "retriedRelationships": [],
+        "backoffMechanism": "PENALIZE_FLOWFILE",
+        "maxBackoffPeriod": "10 mins",
+        "componentType": "PROCESSOR",
+        "groupIdentifier": "925609cd-818d-3bf8-b079-24150093857b"
+      }
+    ],
+    "inputPorts": [],
+    "outputPorts": [],
+    "connections": [
+      {
+        "identifier": "c6cd9bda-ac23-3149-bdd3-05b0b42338ab",
+        "instanceIdentifier": "b080c4e8-019a-1000-9c34-1c70875fae07",
+        "name": "",
+        "source": {
+          "id": "c2684a15-6964-33ef-9447-3b4ac6c06cc2",
+          "type": "PROCESSOR",
+          "groupId": "925609cd-818d-3bf8-b079-24150093857b",
+          "name": "GetGoogleMail",
+          "comments": "",
+          "instanceIdentifier": "b0807919-019a-1000-130d-d4ac9a40c1ab"
+        },
+        "destination": {
+          "id": "53a991ab-14bc-3bc9-9a49-8c30b1fa0b82",
+          "type": "FUNNEL",
+          "groupId": "925609cd-818d-3bf8-b079-24150093857b",
+          "name": "Funnel",
+          "comments": "",
+          "instanceIdentifier": "b08087e1-019a-1000-c598-c4fc2f1eb216"
+        },
+        "labelIndex": 0,
+        "zIndex": 1,
+        "selectedRelationships": [
+          "success"
+        ],
+        "backPressureObjectThreshold": 10000,
+        "backPressureDataSizeThreshold": "1 GB",
+        "flowFileExpiration": "0 sec",
+        "prioritizers": [],
+        "bends": [],
+        "loadBalanceStrategy": "DO_NOT_LOAD_BALANCE",
+        "partitioningAttribute": "",
+        "loadBalanceCompression": "DO_NOT_COMPRESS",
+        "componentType": "CONNECTION",
+        "groupIdentifier": "925609cd-818d-3bf8-b079-24150093857b"
+      }
+    ],
+    "labels": [],
+    "funnels": [
+      {
+        "identifier": "53a991ab-14bc-3bc9-9a49-8c30b1fa0b82",
+        "instanceIdentifier": "b08087e1-019a-1000-c598-c4fc2f1eb216",
+        "position": {
+          "x": 284.5,
+          "y": -149.5
+        },
+        "componentType": "FUNNEL",
+        "groupIdentifier": "925609cd-818d-3bf8-b079-24150093857b"
+      }
+    ],
+    "controllerServices": [],
+    "defaultFlowFileExpiration": "0 sec",
+    "defaultBackPressureObjectThreshold": 10000,
+    "defaultBackPressureDataSizeThreshold": "1 GB",
+    "scheduledState": "ENABLED",
+    "executionEngine": "INHERITED",
+    "maxConcurrentTasks": 1,
+    "statelessFlowTimeout": "1 min",
+    "flowFileConcurrency": "UNBOUNDED",
+    "flowFileOutboundPolicy": "STREAM_WHEN_AVAILABLE",
+    "componentType": "PROCESS_GROUP"
+  },
+  "externalControllerServices": {},
+  "parameterContexts": {},
+  "flowEncodingVersion": "1.0",
+  "parameterProviders": {},
+  "latest": false
+}
