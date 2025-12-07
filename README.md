@@ -21,9 +21,9 @@ This library contains prototypes for two NiFi Python Processors using Microsoft 
 
 ### Prerequisites & Configuration
 
-**Important**: These processors use the `en_core_web_lg` spaCy model (~400MB). To avoid timeouts and excessive bandwidth usage during processor startup, it is **highly recommended** to download the model wheel file locally.
+**Important**: The `en_core_web_lg` model file is quite large (~400MB). **Downloading it can be very slow.** To prevent NiFi processor timeouts and avoid repeated heavy downloads, it is **highly recommended** to download the wheel file manually and place it in a local folder accessible to the processor.
 
-1.  **Download Model**: [en_core_web_lg-3.8.0-py3-none-any.whl](https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl)
+1.  **Download Model**: [en_core_web_lg-3.8.0-py3-none-any.whl](https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl) (**Note: Direct download from GitHub Releases is recommended.**)
 2.  **Configure Processor**:
     -   Set `Spacy Model File` property to the absolute path of the downloaded `.whl` file.
     -   The processor will detect and install/load this local model automatically.

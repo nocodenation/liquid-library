@@ -23,3 +23,4 @@ The flow performs the following steps:
 -   **Processors**: `PresidioAnonymizer`, `PresidioDeanonymizer` (must be installed in NiFi).
 -   **Filesystem**: Ensure the input strings/directories in the processors match your environment/container volume mounts (e.g., `/files/test_data`).
 -   **Model**: The flow is configured to look for the spaCy model at `/files/spacy_models/en_core_web_lg-3.8.0-py3-none-any.whl`. Update this property if your path differs.
+    -   **Note**: The model file is large (~400MB) and downloading it can be very slow. It is highly recommended to [download it directly from GitHub Releases](https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl) and place it in the specified folder manually.
