@@ -34,7 +34,7 @@ class PresidioAnonymizer(FlowFileTransform):
         name="ChromaDB Path",
         description="Local path to store the ChromaDB vector index.",
         required=True,
-        default_value="./chroma_db",
+        default_value="/files/PresidioAnonymizer/chroma_db",
         validators=[StandardValidators.NON_EMPTY_VALIDATOR]
     )
 
