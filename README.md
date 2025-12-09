@@ -191,3 +191,41 @@ Transcribes audio files (MP3, WAV, etc.) into text using OpenAI's Whisper API.
 | **OpenAI API Key** | Your OpenAI API Key. |
 | **Language** | ISO-639-1 language code (optional/auto-detect). |
 | **Prompt** | Text prompt to guide style or context. |
+
+## ManageState
+Manages state ("Global Variables") across different scopes, enabling data sharing between processors or flows.
+
+### Key Features
+*   **Three Storage Backends:**
+    1.  **NiFi State Manager:** Uses the standard component state (Cluster or Local scope). Note: Component state is isolated to the specific processor instance.
+    2.  **JSON File:** Uses a shared JSON file on the local filesystem. This allows multiple processors (even different components) to read/write the same "Global Variable" file if they share the path (e.g. via persistent volume). Includes robust file locking (`fcntl`) for thread safety.
+    3.  **Map Cache Client:** Uses a `DistributedMapCacheClient` controller service (e.g. connecting to Redis or NiFi DistributedMapCacheServer). Enables true cluster-wide shared state.
+*   **Dynamic Operations:** Supports `SET`, `GET`, and `DELETE` operations, configurable via Expression Language.
+*   **Flexible Data:** Keys and Values support Expression Language.
+
+### Configuration
+| Property | Description |
+| :--- | :--- |
+| **Operation** | The operation to perform: `GET`, `SET`, or `DELETE`. Supports Expression Language. |
+| **Storage Method** | Backend to use: `NiFi State Manager` (default), `JSON File`, or `Map Cache Client`. |
+| **File Path** | Path to the shared JSON file (Required if Storage Method is `JSON File`). |
+| **Map Cache Service** | The `DistributedMapCacheClient` service to use (Required if Storage Method is `Map Cache Client`). |
+| **State Scope** | `CLUSTER` or `LOCAL` (Only for `NiFi State Manager`). |
+| **State Key** | The key of the variable. |
+| **State Value** | The value to set (Required for `SET`). |
+| **Output Attribute** | Attribute to store the result in (for `GET`). Default: `state.value`. |
+
+## StatefulCounter
+Implements an atomic counter using NiFi's State Manager.
+
+### Key Features
+*   **Atomic Updates:** Uses optimistic locking (compare-and-swap) with retries to ensure the counter is accurate even with concurrent execution.
+*   **Cluster Safe:** When using `CLUSTER` scope, the count is synchronized across all nodes.
+*   **Dynamic Initialization:** Can set an initial value if the counter doesn't exist.
+
+### Configuration
+| Property | Description |
+| :--- | :--- |
+| **Scope** | `CLUSTER` or `LOCAL`. |
+| **Counter Name** | Key for the counter variable. |
+| **Delta** | Amount to increment/decrement (integer). |
