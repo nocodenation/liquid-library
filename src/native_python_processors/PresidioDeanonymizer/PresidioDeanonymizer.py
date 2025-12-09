@@ -23,7 +23,7 @@ class PresidioDeanonymizer(FlowFileTransform):
         name="Map Database Path",
         description="Local path to the SQLite DB used for PII mapping.",
         required=True,
-        default_value="./anonymization_map.db",
+        default_value="/files/PresidioAnonymizer/anonymization_map.db",
         validators=[StandardValidators.NON_EMPTY_VALIDATOR]
     )
 
