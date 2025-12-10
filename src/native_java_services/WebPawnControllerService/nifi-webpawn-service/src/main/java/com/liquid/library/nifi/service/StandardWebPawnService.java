@@ -182,7 +182,7 @@ public class StandardWebPawnService extends AbstractControllerService implements
     @Override
     public String askGemini(String sessionId, String prompt, String imageBase64, String modelName) {
         if (modelName == null || modelName.isEmpty()) {
-            modelName = "gemini-1.5-flash-001";
+            modelName = "gemini-2.0-flash-001";
         }
         String apiKey = getConfigurationContext().getProperty(GEMINI_API_KEY).getValue();
         
@@ -231,17 +231,7 @@ public class StandardWebPawnService extends AbstractControllerService implements
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() != 200) {
-            String errorRaw = response.body();
-            StringBuilder errorMsg = new StringBuilder("Gemini API Error: " + response.statusCode() + " " + errorRaw);
-            
-            if (response.statusCode() == 404) {
-                 try {
-                     errorMsg.append("\nAvailable Models: ").append(listModels(apiKey));
-                 } catch (Exception e) {
-                     errorMsg.append("\n(Failed to list models: ").append(e.getMessage()).append(")");
-                 }
-            }
-            throw new RuntimeException(errorMsg.toString());
+            throw new RuntimeException("Gemini API Error: " + response.statusCode() + " " + response.body());
         }
 
         // Parse Response to get text
@@ -267,21 +257,6 @@ public class StandardWebPawnService extends AbstractControllerService implements
         return "";
     }
 
-    private String listModels(String apiKey) {
-        try {
-            String url = "https://generativelanguage.googleapis.com/v1beta/models?key=" + apiKey;
-            java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
-            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
-                    .uri(java.net.URI.create(url))
-                    .GET()
-                    .build();
-            java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
-            return response.body();
-        } catch (Exception e) {
-            return "Error listing models: " + e.getMessage();
-        }
-    }
-
     @Override
     public void closeSession(String sessionId) {
         BrowserContext ctx = sessionMap.remove(sessionId);
@@ -297,7 +272,7 @@ public class StandardWebPawnService extends AbstractControllerService implements
         if (ctx == null) throw new IllegalArgumentException("Session not found: " + sessionId);
         
         Page page = getOrCreatePage(ctx);
-        String modelName = "gemini-1.5-flash-001"; // Could be a property
+        String modelName = "gemini-2.0-flash-001"; // Could be a property
         String apiKey = getConfigurationContext().getProperty(GEMINI_API_KEY).getValue();
         
         try {
