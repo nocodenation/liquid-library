@@ -182,7 +182,7 @@ public class StandardWebPawnService extends AbstractControllerService implements
     @Override
     public String askGemini(String sessionId, String prompt, String imageBase64, String modelName) {
         if (modelName == null || modelName.isEmpty()) {
-            modelName = "gemini-1.5-flash";
+            modelName = "gemini-1.5-flash-001";
         }
         String apiKey = getConfigurationContext().getProperty(GEMINI_API_KEY).getValue();
         
@@ -272,7 +272,7 @@ public class StandardWebPawnService extends AbstractControllerService implements
         if (ctx == null) throw new IllegalArgumentException("Session not found: " + sessionId);
         
         Page page = getOrCreatePage(ctx);
-        String modelName = "gemini-1.5-flash"; // Could be a property
+        String modelName = "gemini-1.5-flash-001"; // Could be a property
         String apiKey = getConfigurationContext().getProperty(GEMINI_API_KEY).getValue();
         
         try {

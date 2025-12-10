@@ -60,17 +60,17 @@ public class OrchestrateWebPawn extends AbstractProcessor {
 
     public static final PropertyDescriptor VISION_MODEL = new PropertyDescriptor.Builder()
             .name("Vision Model")
-            .description("The Gemini model to use for analyzing screenshots (The Eye). e.g. gemini-1.5-flash")
+            .description("The Gemini model to use for analyzing screenshots (The Eye). e.g. gemini-1.5-flash-001")
             .required(true)
-            .defaultValue("gemini-1.5-flash")
+            .defaultValue("gemini-1.5-flash-001")
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
     public static final PropertyDescriptor REASONING_MODEL = new PropertyDescriptor.Builder()
             .name("Reasoning Model")
-            .description("The Gemini model to use for planning the next step (The Brain). e.g. gemini-1.5-pro")
+            .description("The Gemini model to use for planning the next step (The Brain). e.g. gemini-1.5-pro-001")
             .required(true)
-            .defaultValue("gemini-1.5-pro")
+            .defaultValue("gemini-1.5-pro-001")
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
