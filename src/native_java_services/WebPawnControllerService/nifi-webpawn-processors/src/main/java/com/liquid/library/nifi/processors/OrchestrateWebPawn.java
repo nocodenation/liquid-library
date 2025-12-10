@@ -144,9 +144,9 @@ public class OrchestrateWebPawn extends AbstractProcessor {
         Gson gson = new Gson();
 
         try {
-            // Ensure session exists (assume usage of START_SESSION previously or auto-create empty?)
-            // We assume session is active or we can blindly try to use it. 
-            // Better to just start loop.
+            // Ensure session exists.
+            // If it doesn't exist, this will create a new one (starting at about:blank).
+            service.ensureSession(sessionId, null);
 
             for (int step = 1; step <= maxSteps; step++) {
                 // 1. Observe: Get Screenshot
