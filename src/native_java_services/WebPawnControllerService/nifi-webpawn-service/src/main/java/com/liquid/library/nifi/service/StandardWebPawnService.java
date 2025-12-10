@@ -231,7 +231,17 @@ public class StandardWebPawnService extends AbstractControllerService implements
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() != 200) {
-            throw new RuntimeException("Gemini API Error: " + response.statusCode() + " " + response.body());
+            String errorRaw = response.body();
+            StringBuilder errorMsg = new StringBuilder("Gemini API Error: " + response.statusCode() + " " + errorRaw);
+            
+            if (response.statusCode() == 404) {
+                 try {
+                     errorMsg.append("\nAvailable Models: ").append(listModels(apiKey));
+                 } catch (Exception e) {
+                     errorMsg.append("\n(Failed to list models: ").append(e.getMessage()).append(")");
+                 }
+            }
+            throw new RuntimeException(errorMsg.toString());
         }
 
         // Parse Response to get text
@@ -255,6 +265,21 @@ public class StandardWebPawnService extends AbstractControllerService implements
              }
         }
         return "";
+    }
+
+    private String listModels(String apiKey) {
+        try {
+            String url = "https://generativelanguage.googleapis.com/v1beta/models?key=" + apiKey;
+            java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(url))
+                    .GET()
+                    .build();
+            java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+            return response.body();
+        } catch (Exception e) {
+            return "Error listing models: " + e.getMessage();
+        }
     }
 
     @Override
