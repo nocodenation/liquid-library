@@ -74,6 +74,14 @@ public class OrchestrateWebPawn extends AbstractProcessor {
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 
+    public static final PropertyDescriptor STEP_DELAY = new PropertyDescriptor.Builder()
+            .name("Step Delay")
+            .description("The pause duration between agent steps (in milliseconds) to avoid hitting API rate limits. e.g. 15000 for 15 seconds.")
+            .required(true)
+            .defaultValue("15000") // 15 seconds default for safety
+            .addValidator(StandardValidators.INTEGER_VALIDATOR)
+            .build();
+
     public static final Relationship REL_SUCCESS = new Relationship.Builder()
             .name("success")
             .description("The goal was achieved.")
@@ -97,6 +105,8 @@ public class OrchestrateWebPawn extends AbstractProcessor {
         props.add(WEBPAWN_SERVICE);
         props.add(SESSION_ID);
         props.add(TASK);
+        props.add(MAX_STEPS);
+        props.add(STEP_DELAY);
         props.add(INSTRUCTIONS);
         props.add(MAX_STEPS);
         props.add(VISION_MODEL);
@@ -134,6 +144,7 @@ public class OrchestrateWebPawn extends AbstractProcessor {
         String task = context.getProperty(TASK).evaluateAttributeExpressions(flowFile).getValue();
         String instructions = context.getProperty(INSTRUCTIONS).evaluateAttributeExpressions(flowFile).getValue();
         int maxSteps = context.getProperty(MAX_STEPS).asInteger();
+        int stepDelay = context.getProperty(STEP_DELAY).asInteger();
         String visionModel = context.getProperty(VISION_MODEL).getValue();
         String reasoningModel = context.getProperty(REASONING_MODEL).getValue();
 
@@ -175,7 +186,7 @@ public class OrchestrateWebPawn extends AbstractProcessor {
                     prompt.append("- ").append(h).append("\n");
                 }
                 prompt.append("\nDecide the next step. Output ONLY valid JSON with this format:\n");
-                prompt.append("{\n  \"thought\": \"reasoning here\",\n  \"status\": \"CONTINUE\" or \"SUCCESS\" or \"FAILURE\",\n  \"action_type\": \"NAVIGATE\" or \"PROMPT\",\n  \"action_payload\": \"url or instruction\"\n}");
+                prompt.append("{\n  \"thought\": \"reasoning here\",\n  \"status\": \"CONTINUE\" or \"SUCCESS\" or \"FAILURE\",\n  \"action_type\": \"NAVIGATE\" or \"PROMPT\",\n  \"action_payload\": \"If CONTINUE: url or instruction. If SUCCESS: The FINAL ANSWER (links, summaries, text) as a clean string.\"\n}");
 
                 String agentResponse = service.askGemini(sessionId, prompt.toString(), null, reasoningModel);
                 
@@ -220,8 +231,13 @@ public class OrchestrateWebPawn extends AbstractProcessor {
                     service.executePrompt(sessionId, actionPayload);
                 }
                 
-                // Small sleep? 
-                Thread.sleep(1000);
+                // Rate limiting delay
+                try {
+                    Thread.sleep(stepDelay);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new ProcessException("Interrupted during step delay", ie);
+                }
             }
 
             // Write Output

@@ -228,10 +228,41 @@ public class StandardWebPawnService extends AbstractControllerService implements
                 .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
                 .build();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = null;
+        int maxRetries = 3;
+        int attempt = 0;
+        
+        while (attempt < maxRetries) {
+            try {
+                response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                
+                if (response.statusCode() == 200) {
+                    break;
+                } else if (response.statusCode() == 503 || response.statusCode() == 429) {
+                    attempt++;
+                    if (attempt == maxRetries) break; // Let it fall through to error handling
+                    
+                    long backoffTime = (long) Math.pow(2, attempt) * 2000; // 4s, 8s...
+                    getLogger().warn("Gemini API Error {}. Retrying in {} ms (Attempt {}/{})", 
+                        new Object[]{response.statusCode(), backoffTime, attempt, maxRetries});
+                    Thread.sleep(backoffTime);
+                } else {
+                    // Other errors (400, 401, etc) - fail immediately
+                    break;
+                }
+            } catch (Exception e) {
+                // Network errors - retry?
+                getLogger().error("Network error calling Gemini", e);
+                attempt++;
+                if (attempt == maxRetries) throw e;
+                Thread.sleep(2000);
+            }
+        }
 
-        if (response.statusCode() != 200) {
-            throw new RuntimeException("Gemini API Error: " + response.statusCode() + " " + response.body());
+        if (response == null || response.statusCode() != 200) {
+            String body = response != null ? response.body() : "No response";
+            int code = response != null ? response.statusCode() : 0;
+            throw new RuntimeException("Gemini API Error: " + code + " " + body);
         }
 
         // Parse Response to get text
