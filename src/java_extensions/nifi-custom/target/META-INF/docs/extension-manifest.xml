@@ -1,0 +1,1 @@
+<extensionManifest><groupId>com.example.nifi</groupId><artifactId>nifi-set-attribute-processor</artifactId><version>1.0-SNAPSHOT</version><systemApiVersion>2.0.0</systemApiVersion><buildInfo></buildInfo><extensions></extensions></extensionManifest>
