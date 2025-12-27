@@ -50,7 +50,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class RouteOnJSONMap extends AbstractProcessor {
 
     public static final PropertyDescriptor JSON_RULES = new PropertyDescriptor.Builder()
-            .name("JSON Rules")
+            .name("JSON Map")
             .description(
                     "A JSON map defining the routing rules. Keys are route names, values are boolean expressions. " +
                             "Example: {\"route_1\": \"${http.uri:equals('/start')}\", \"route_always\": \"true\"}")
@@ -60,8 +60,8 @@ public class RouteOnJSONMap extends AbstractProcessor {
             .build();
 
     public static final PropertyDescriptor JSON_RULES_FILE = new PropertyDescriptor.Builder()
-            .name("JSON Rules File")
-            .description("Path to a file containing the JSON rules map. Overrides 'JSON Rules' if provided.")
+            .name("JSON Map File")
+            .description("Path to a file containing the JSON rules map. Overrides 'JSON Map' if provided.")
             .required(false)
             .addValidator(StandardValidators.FILE_EXISTS_VALIDATOR)
             .expressionLanguageSupported(ExpressionLanguageScope.ENVIRONMENT)
