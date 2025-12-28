@@ -221,7 +221,9 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
                                                      "sheet_name": sheet_name})
 
         except Exception as e:
-            self.logger.error(f"Error posting to Google Spreadsheet: {str(e)}", exc_info=True)
+            import traceback
+            error_details = f"Error posting to Google Spreadsheet: {str(e)}\n{traceback.format_exc()}"
+            self.logger.error(error_details)
             return FlowFileTransformResult(relationship="failure",
                                           attributes={"error": str(e)})
 
