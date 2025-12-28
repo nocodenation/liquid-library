@@ -192,6 +192,7 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
         List<ValidationResult> results = new ArrayList<>();
 
         String providerValue = validationContext.getProperty(PROVIDER).getValue();
+        int port = validationContext.getProperty(WEB_SERVER_PORT).asInteger();
 
         if ("GOOGLE".equals(providerValue)) {
             if (!validationContext.getProperty(GOOGLE_CLIENT_ID).isSet()) {
@@ -215,6 +216,26 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
                         .explanation("Google Scopes is required when Google provider is selected")
                         .build());
             }
+
+            // Add informational message about URLs when configuration is valid
+            if (validationContext.getProperty(GOOGLE_CLIENT_ID).isSet() &&
+                validationContext.getProperty(GOOGLE_CLIENT_SECRET).isSet() &&
+                validationContext.getProperty(GOOGLE_SCOPES).isSet()) {
+
+                String loginUrl = "http://localhost:" + port + "/login";
+                String callbackUrl = "http://localhost:" + port + "/callback";
+
+                results.add(new ValidationResult.Builder()
+                        .subject("OAuth2 Configuration Info")
+                        .valid(true)
+                        .explanation(String.format(
+                            "Login URL: %s | " +
+                            "Callback URL: %s | " +
+                            "IMPORTANT: Add the callback URL as an 'Authorized redirect URI' in your Google Cloud Console " +
+                            "(APIs & Services > Credentials > OAuth 2.0 Client IDs > Edit your client)",
+                            loginUrl, callbackUrl))
+                        .build());
+            }
         } else if ("MICROSOFT".equals(providerValue)) {
             if (!validationContext.getProperty(MICROSOFT_CLIENT_ID).isSet()) {
                 results.add(new ValidationResult.Builder()
@@ -235,6 +256,26 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
                         .subject("Microsoft Scopes")
                         .valid(false)
                         .explanation("Microsoft Scopes is required when Microsoft provider is selected")
+                        .build());
+            }
+
+            // Add informational message about URLs when configuration is valid
+            if (validationContext.getProperty(MICROSOFT_CLIENT_ID).isSet() &&
+                validationContext.getProperty(MICROSOFT_CLIENT_SECRET).isSet() &&
+                validationContext.getProperty(MICROSOFT_SCOPES).isSet()) {
+
+                String loginUrl = "http://localhost:" + port + "/login";
+                String callbackUrl = "http://localhost:" + port + "/callback";
+
+                results.add(new ValidationResult.Builder()
+                        .subject("OAuth2 Configuration Info")
+                        .valid(true)
+                        .explanation(String.format(
+                            "Login URL: %s | " +
+                            "Callback URL: %s | " +
+                            "IMPORTANT: Add the callback URL as a 'Redirect URI' in your Microsoft Entra (Azure AD) portal " +
+                            "(App registrations > Your app > Authentication > Platform configurations > Add a platform > Web)",
+                            loginUrl, callbackUrl))
                         .build());
             }
         }
@@ -648,19 +689,60 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
             resp.setContentType("text/html");
 
+            String loginUrl = "http://localhost:" + webServerPort + "/login";
+            String callbackUrl = "http://localhost:" + webServerPort + "/callback";
+
             if (isAuthenticated()) {
-                resp.getWriter().println("<html><body>");
+                resp.getWriter().println("<html><head><style>");
+                resp.getWriter().println("body { font-family: Arial, sans-serif; margin: 40px; }");
+                resp.getWriter().println("h1 { color: #333; }");
+                resp.getWriter().println(".info-box { background: #f0f0f0; border-left: 4px solid #4CAF50; padding: 15px; margin: 20px 0; }");
+                resp.getWriter().println("code { background: #e0e0e0; padding: 2px 6px; border-radius: 3px; }");
+                resp.getWriter().println("</style></head><body>");
                 resp.getWriter().println("<h1>Authentication Status</h1>");
                 resp.getWriter().println("<p>Already authenticated as: <strong>" + getAuthenticatedUser() + "</strong></p>");
                 resp.getWriter().println("<p><a href='/status'>View Status</a> | <a href='/logout'>Logout</a></p>");
+                resp.getWriter().println("<div class='info-box'>");
+                resp.getWriter().println("<strong>Configuration URLs:</strong><br>");
+                resp.getWriter().println("Login URL: <code>" + loginUrl + "</code><br>");
+                resp.getWriter().println("Callback URL: <code>" + callbackUrl + "</code>");
+                resp.getWriter().println("</div>");
                 resp.getWriter().println("</body></html>");
             } else {
-                resp.getWriter().println("<html><body>");
+                String configInstructions;
+                if (provider == OAuth2Provider.GOOGLE) {
+                    configInstructions = "Add <code>" + callbackUrl + "</code> as an 'Authorized redirect URI' in your " +
+                        "<a href='https://console.cloud.google.com/apis/credentials' target='_blank'>Google Cloud Console</a> " +
+                        "(APIs & Services > Credentials > OAuth 2.0 Client IDs > Edit your client)";
+                } else {
+                    configInstructions = "Add <code>" + callbackUrl + "</code> as a 'Redirect URI' in your " +
+                        "<a href='https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade' target='_blank'>Microsoft Entra portal</a> " +
+                        "(App registrations > Your app > Authentication > Platform configurations > Add a platform > Web)";
+                }
+
+                resp.getWriter().println("<html><head><style>");
+                resp.getWriter().println("body { font-family: Arial, sans-serif; margin: 40px; }");
+                resp.getWriter().println("h1 { color: #333; }");
+                resp.getWriter().println(".info-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }");
+                resp.getWriter().println(".warning { background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 20px 0; }");
+                resp.getWriter().println("code { background: #e0e0e0; padding: 2px 6px; border-radius: 3px; }");
+                resp.getWriter().println("button { background: #4285F4; color: white; border: none; padding: 12px 24px; font-size: 16px; cursor: pointer; border-radius: 4px; }");
+                resp.getWriter().println("button:hover { background: #357ae8; }");
+                resp.getWriter().println("</style></head><body>");
                 resp.getWriter().println("<h1>" + provider.getDisplayName() + " OAuth2 Authentication</h1>");
                 resp.getWriter().println("<p>Click the button below to authenticate with " + provider.getDisplayName() + "</p>");
                 resp.getWriter().println("<form action='/auth/redirect' method='get'>");
                 resp.getWriter().println("<button type='submit'>Login with " + provider.getDisplayName() + "</button>");
                 resp.getWriter().println("</form>");
+                resp.getWriter().println("<div class='warning'>");
+                resp.getWriter().println("<strong>⚠️ IMPORTANT - Callback URL Configuration Required:</strong><br><br>");
+                resp.getWriter().println(configInstructions);
+                resp.getWriter().println("</div>");
+                resp.getWriter().println("<div class='info-box'>");
+                resp.getWriter().println("<strong>Configuration URLs:</strong><br>");
+                resp.getWriter().println("Login URL: <code>" + loginUrl + "</code><br>");
+                resp.getWriter().println("Callback URL: <code>" + callbackUrl + "</code>");
+                resp.getWriter().println("</div>");
                 resp.getWriter().println("</body></html>");
             }
         }
@@ -802,6 +884,9 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
             resp.setContentType("text/html");
 
+            String loginUrl = "http://localhost:" + webServerPort + "/login";
+            String callbackUrl = "http://localhost:" + webServerPort + "/callback";
+
             if (!isAuthenticated()) {
                 resp.getWriter().println("<html><body>");
                 resp.getWriter().println("<h1>Not Authenticated</h1>");
@@ -812,13 +897,34 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
 
             long expiresAt = getTokenExpirationTime();
             Date expirationDate = new Date(expiresAt);
+            long timeUntilExpiry = expiresAt - System.currentTimeMillis();
+            long minutesUntilExpiry = timeUntilExpiry / (60 * 1000);
 
-            resp.getWriter().println("<html><body>");
+            resp.getWriter().println("<html><head><style>");
+            resp.getWriter().println("body { font-family: Arial, sans-serif; margin: 40px; }");
+            resp.getWriter().println("h1 { color: #333; }");
+            resp.getWriter().println(".info-box { background: #f0f0f0; border-left: 4px solid #4CAF50; padding: 15px; margin: 20px 0; }");
+            resp.getWriter().println("code { background: #e0e0e0; padding: 2px 6px; border-radius: 3px; }");
+            resp.getWriter().println("button { background: #dc3545; color: white; border: none; padding: 12px 24px; font-size: 16px; cursor: pointer; border-radius: 4px; }");
+            resp.getWriter().println("button:hover { background: #c82333; }");
+            resp.getWriter().println("table { border-collapse: collapse; width: 100%; margin: 20px 0; }");
+            resp.getWriter().println("td { padding: 10px; border-bottom: 1px solid #ddd; }");
+            resp.getWriter().println("td:first-child { font-weight: bold; width: 200px; }");
+            resp.getWriter().println("</style></head><body>");
             resp.getWriter().println("<h1>Authentication Status</h1>");
-            resp.getWriter().println("<p><strong>Provider:</strong> " + provider.getDisplayName() + "</p>");
-            resp.getWriter().println("<p><strong>Authenticated User:</strong> " + getAuthenticatedUser() + "</p>");
-            resp.getWriter().println("<p><strong>Token Expires:</strong> " + expirationDate + "</p>");
-            resp.getWriter().println("<p><strong>Scopes:</strong> " + currentToken.getScope() + "</p>");
+            resp.getWriter().println("<table>");
+            resp.getWriter().println("<tr><td>Provider:</td><td>" + provider.getDisplayName() + "</td></tr>");
+            resp.getWriter().println("<tr><td>Authenticated User:</td><td>" + getAuthenticatedUser() + "</td></tr>");
+            resp.getWriter().println("<tr><td>Token Expires:</td><td>" + expirationDate + " (" + minutesUntilExpiry + " minutes from now)</td></tr>");
+            resp.getWriter().println("<tr><td>Scopes:</td><td>" + currentToken.getScope() + "</td></tr>");
+            resp.getWriter().println("<tr><td>Auto-Refresh Buffer:</td><td>" + tokenRefreshBuffer + " seconds before expiration</td></tr>");
+            resp.getWriter().println("</table>");
+            resp.getWriter().println("<div class='info-box'>");
+            resp.getWriter().println("<strong>Configuration URLs:</strong><br>");
+            resp.getWriter().println("Login URL: <code>" + loginUrl + "</code><br>");
+            resp.getWriter().println("Callback URL: <code>" + callbackUrl + "</code><br><br>");
+            resp.getWriter().println("<em>Note: Tokens are automatically refreshed " + tokenRefreshBuffer + " seconds before expiration.</em>");
+            resp.getWriter().println("</div>");
             resp.getWriter().println("<form action='/logout' method='post'>");
             resp.getWriter().println("<button type='submit'>Logout</button>");
             resp.getWriter().println("</form>");
