@@ -1,5 +1,0 @@
-com/example/nifi/services/StandardLogViewerService$LogPageServlet.class
-com/example/nifi/services/StandardLogViewerService.class
-com/example/nifi/services/LogViewerService.class
-com/example/nifi/services/StandardLogViewerService$LogWebSocket.class
-com/example/nifi/processors/SetDynamicAttribute.class
