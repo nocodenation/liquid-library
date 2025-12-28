@@ -273,6 +273,21 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
 
         raise ValueError(f"Unsupported JSON format. Expected array of objects or object with 'headers' and 'rows' fields.")
 
+    def _get_spreadsheet_metadata(self, access_token, spreadsheet_id):
+        """Get spreadsheet metadata including available sheet names."""
+        url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}"
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Accept': 'application/json'
+        }
+
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Failed to get spreadsheet metadata: {response.status_code} - {response.text}")
+
     def _get_sheet_data(self, access_token, spreadsheet_id, sheet_name):
         """Fetch existing sheet data."""
         url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{sheet_name}"
@@ -289,6 +304,14 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
         elif response.status_code == 404:
             # Sheet doesn't exist or is empty
             return []
+        elif response.status_code == 400:
+            # Invalid sheet name - provide helpful error with available sheets
+            try:
+                metadata = self._get_spreadsheet_metadata(access_token, spreadsheet_id)
+                available_sheets = [sheet['properties']['title'] for sheet in metadata.get('sheets', [])]
+                raise Exception(f"Sheet '{sheet_name}' not found. Available sheets: {', '.join(available_sheets)}")
+            except Exception as meta_error:
+                raise Exception(f"Sheet '{sheet_name}' not found. Could not retrieve available sheets: {str(meta_error)}")
         else:
             raise Exception(f"Failed to get sheet data: {response.status_code} - {response.text}")
 
