@@ -509,6 +509,25 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
         }
     }
 
+    private String extractUserFromIdToken(String idToken) {
+        try {
+            DecodedJWT jwt = JWT.decode(idToken);
+            String email = jwt.getClaim("email").asString();
+            if (email != null) {
+                return email;
+            }
+            String name = jwt.getClaim("name").asString();
+            if (name != null) {
+                return name;
+            }
+            String sub = jwt.getClaim("sub").asString();
+            return sub != null ? sub : "Unknown User";
+        } catch (Exception e) {
+            getLogger().warn("Failed to extract user from ID token", e);
+            return "Unknown User";
+        }
+    }
+
     private String extractUserFromToken(String accessToken) {
         // For Google, call the userinfo endpoint
         if (provider == OAuth2Provider.GOOGLE) {
@@ -687,7 +706,14 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
                 long expiresAt = System.currentTimeMillis() + (expiresIn * 1000);
                 String scope = response.has("scope") ? response.get("scope").asText() : scopes;
 
-                String authenticatedUser = extractUserFromToken(accessToken);
+                // Extract user from ID token if available (Google provides this)
+                String authenticatedUser = "Unknown User";
+                if (response.has("id_token")) {
+                    authenticatedUser = extractUserFromIdToken(response.get("id_token").asText());
+                }
+                if ("Unknown User".equals(authenticatedUser)) {
+                    authenticatedUser = extractUserFromToken(accessToken);
+                }
 
                 currentToken = new OAuth2Token(accessToken, refreshToken, expiresAt, scope, authenticatedUser);
                 saveTokenToState();
