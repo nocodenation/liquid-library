@@ -607,8 +607,10 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
                 # Add new headers to the spreadsheet
                 new_headers = sorted(unrecognized_headers)
                 self._add_new_columns(access_token, spreadsheet_id, sheet_name, existing_headers, new_headers, value_input_option)
-                # Update existing_headers to include new ones
-                existing_headers.extend(new_headers)
+                # Re-fetch the sheet data to get the updated header row with correct column positions
+                updated_data = self._get_sheet_data(access_token, spreadsheet_id, sheet_name)
+                existing_headers = updated_data[0]  # Get the updated header row
+                existing_rows = updated_data[1:]    # Update existing rows as well
 
         # Find identifier column indices
         identifier_indices = []
@@ -695,8 +697,10 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
                 # Add new headers to the spreadsheet
                 new_headers = sorted(unrecognized_headers)
                 self._add_new_columns(access_token, spreadsheet_id, sheet_name, existing_headers, new_headers, value_input_option)
-                # Update existing_headers to include new ones
-                existing_headers.extend(new_headers)
+                # Re-fetch the sheet data to get the updated header row with correct column positions
+                updated_data = self._get_sheet_data(access_token, spreadsheet_id, sheet_name)
+                existing_headers = updated_data[0]  # Get the updated header row
+                existing_rows = updated_data[1:]    # Update existing rows as well
 
         # Find identifier column indices
         identifier_indices = []
