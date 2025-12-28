@@ -120,6 +120,17 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
         validators=[StandardValidators.NON_EMPTY_VALIDATOR]
     )
 
+    FORMAT_AS_TABLE = PropertyDescriptor(
+        name="Format as Table",
+        description="If true, formats the data range as a table with alternating row colors (banded rows). "
+                    "This applies formatting to make the data visually organized like a table. "
+                    "Only applicable in APPEND and REPLACE modes.",
+        required=True,
+        default_value="false",
+        allowable_values=["true", "false"],
+        validators=[StandardValidators.BOOLEAN_VALIDATOR]
+    )
+
     def getPropertyDescriptors(self):
         return [
             self.AUTHENTICATION_SERVICE,
@@ -130,7 +141,8 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
             self.IDENTIFIER_FIELDS,
             self.INCLUDE_HEADER_ROW,
             self.INPUT_FORMAT,
-            self.VALUE_INPUT_OPTION
+            self.VALUE_INPUT_OPTION,
+            self.FORMAT_AS_TABLE
         ]
 
     def onScheduled(self, context):
@@ -175,6 +187,7 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
             include_header = context.getProperty(self.INCLUDE_HEADER_ROW).asBoolean()
             input_format = context.getProperty(self.INPUT_FORMAT).getValue()
             value_input_option = context.getProperty(self.VALUE_INPUT_OPTION).getValue()
+            format_as_table = context.getProperty(self.FORMAT_AS_TABLE).asBoolean()
 
             # Parse identifier fields
             identifier_fields = []
@@ -201,10 +214,10 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
             # Execute write operation based on mode
             if write_mode == "APPEND":
                 rows_written = self._append_rows(access_token, spreadsheet_id, sheet_name, headers, rows,
-                                                 include_header, value_input_option)
+                                                 include_header, value_input_option, format_as_table)
             elif write_mode == "REPLACE":
                 rows_written = self._replace_all(access_token, spreadsheet_id, sheet_name, headers, rows,
-                                                 start_cell, include_header, value_input_option)
+                                                 start_cell, include_header, value_input_option, format_as_table)
             elif write_mode == "UPDATE":
                 rows_written = self._update_rows(access_token, spreadsheet_id, sheet_name, headers, rows,
                                                 identifier_fields, value_input_option)
@@ -315,15 +328,16 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
         else:
             raise Exception(f"Failed to get sheet data: {response.status_code} - {response.text}")
 
-    def _append_rows(self, access_token, spreadsheet_id, sheet_name, headers, rows, include_header, value_input_option):
+    def _append_rows(self, access_token, spreadsheet_id, sheet_name, headers, rows, include_header, value_input_option, format_as_table):
         """Append rows to the end of the sheet."""
         # Check if sheet is empty
         existing_data = self._get_sheet_data(access_token, spreadsheet_id, sheet_name)
 
         values_to_append = []
+        is_new_sheet = not existing_data
 
         # If sheet is empty and include_header is true, add headers first
-        if not existing_data and include_header:
+        if is_new_sheet and include_header:
             values_to_append.append(headers)
 
         values_to_append.extend(rows)
@@ -349,9 +363,15 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
         if response.status_code != 200:
             raise Exception(f"Failed to append rows: {response.status_code} - {response.text}")
 
+        # Apply table formatting if requested and this is a new sheet with headers
+        if format_as_table and is_new_sheet and include_header:
+            num_cols = len(headers)
+            num_rows = len(rows) + 1  # +1 for header row
+            self._apply_table_formatting(access_token, spreadsheet_id, sheet_name, num_rows, num_cols)
+
         return len(rows)
 
-    def _replace_all(self, access_token, spreadsheet_id, sheet_name, headers, rows, start_cell, include_header, value_input_option):
+    def _replace_all(self, access_token, spreadsheet_id, sheet_name, headers, rows, start_cell, include_header, value_input_option, format_as_table):
         """Clear all data and write new data."""
         # Clear existing data
         clear_url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{sheet_name}:clear"
@@ -388,7 +408,126 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
         if response.status_code != 200:
             raise Exception(f"Failed to write data: {response.status_code} - {response.text}")
 
+        # Apply table formatting if requested and headers are included
+        if format_as_table and include_header:
+            num_cols = len(headers)
+            num_rows = len(rows) + 1  # +1 for header row
+            self._apply_table_formatting(access_token, spreadsheet_id, sheet_name, num_rows, num_cols)
+
         return len(rows)
+
+    def _apply_table_formatting(self, access_token, spreadsheet_id, sheet_name, num_rows, num_cols):
+        """Apply table formatting (banded rows with header) to the data range."""
+        try:
+            # Get sheet ID from sheet name
+            metadata = self._get_spreadsheet_metadata(access_token, spreadsheet_id)
+            sheet_id = None
+            for sheet in metadata.get('sheets', []):
+                if sheet['properties']['title'] == sheet_name:
+                    sheet_id = sheet['properties']['sheetId']
+                    break
+
+            if sheet_id is None:
+                self.logger.warn(f"Could not find sheet ID for '{sheet_name}', skipping table formatting")
+                return
+
+            # Create batchUpdate request for table formatting
+            url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}:batchUpdate"
+            headers_dict = {
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'application/json'
+            }
+
+            requests_list = []
+
+            # 1. Add banded range (alternating row colors)
+            requests_list.append({
+                'addBanding': {
+                    'bandedRange': {
+                        'range': {
+                            'sheetId': sheet_id,
+                            'startRowIndex': 0,
+                            'endRowIndex': num_rows,
+                            'startColumnIndex': 0,
+                            'endColumnIndex': num_cols
+                        },
+                        'rowProperties': {
+                            'headerColor': {
+                                'red': 0.26,
+                                'green': 0.52,
+                                'blue': 0.96,
+                                'alpha': 1.0
+                            },
+                            'firstBandColor': {
+                                'red': 1.0,
+                                'green': 1.0,
+                                'blue': 1.0,
+                                'alpha': 1.0
+                            },
+                            'secondBandColor': {
+                                'red': 0.92,
+                                'green': 0.95,
+                                'blue': 0.99,
+                                'alpha': 1.0
+                            }
+                        }
+                    }
+                }
+            })
+
+            # 2. Make header row bold
+            requests_list.append({
+                'repeatCell': {
+                    'range': {
+                        'sheetId': sheet_id,
+                        'startRowIndex': 0,
+                        'endRowIndex': 1,
+                        'startColumnIndex': 0,
+                        'endColumnIndex': num_cols
+                    },
+                    'cell': {
+                        'userEnteredFormat': {
+                            'textFormat': {
+                                'bold': True,
+                                'foregroundColor': {
+                                    'red': 1.0,
+                                    'green': 1.0,
+                                    'blue': 1.0,
+                                    'alpha': 1.0
+                                }
+                            }
+                        }
+                    },
+                    'fields': 'userEnteredFormat.textFormat'
+                }
+            })
+
+            # 3. Freeze header row
+            requests_list.append({
+                'updateSheetProperties': {
+                    'properties': {
+                        'sheetId': sheet_id,
+                        'gridProperties': {
+                            'frozenRowCount': 1
+                        }
+                    },
+                    'fields': 'gridProperties.frozenRowCount'
+                }
+            })
+
+            body = {
+                'requests': requests_list
+            }
+
+            response = requests.post(url, headers=headers_dict, json=body)
+
+            if response.status_code != 200:
+                self.logger.warn(f"Failed to apply table formatting: {response.status_code} - {response.text}")
+            else:
+                self.logger.info(f"Successfully applied table formatting to {sheet_name}")
+
+        except Exception as e:
+            self.logger.warn(f"Error applying table formatting: {str(e)}")
 
     def _update_rows(self, access_token, spreadsheet_id, sheet_name, headers, rows, identifier_fields, value_input_option):
         """Update existing rows based on identifier fields."""
