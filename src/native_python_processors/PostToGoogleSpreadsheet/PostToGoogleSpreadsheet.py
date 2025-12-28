@@ -752,9 +752,17 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
         if updates:
             self._batch_update(access_token, spreadsheet_id, updates, value_input_option)
 
-        # Execute inserts
+        # Execute inserts - need to remap new_rows to match existing spreadsheet column order
         if new_rows:
-            self._append_rows(access_token, spreadsheet_id, sheet_name, headers, new_rows, False, value_input_option, False)
+            # Remap new rows to match existing header order
+            remapped_rows = []
+            for row in new_rows:
+                row_dict = {headers[i]: row[i] if i < len(row) else '' for i in range(len(headers))}
+                remapped_row = [row_dict.get(header, '') for header in existing_headers]
+                remapped_rows.append(remapped_row)
+
+            # Append using existing_headers order, not incoming headers order
+            self._append_rows(access_token, spreadsheet_id, sheet_name, existing_headers, remapped_rows, False, value_input_option, False)
 
         self.logger.info(f"UPSERT completed: {rows_updated} updated, {rows_inserted} inserted")
         return rows_updated + rows_inserted
