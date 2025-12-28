@@ -636,10 +636,20 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
                 authUrl.append(provider.getAuthorizationEndpoint(tenantId));
             }
 
+            // For Google, ensure openid and email scopes are included to get ID token
+            String effectiveScopes = scopes;
+            if (provider == OAuth2Provider.GOOGLE) {
+                if (!scopes.contains("openid")) {
+                    effectiveScopes = "openid email " + scopes;
+                } else if (!scopes.contains("email")) {
+                    effectiveScopes = "email " + scopes;
+                }
+            }
+
             authUrl.append("?client_id=").append(URLEncoder.encode(clientId, StandardCharsets.UTF_8));
             authUrl.append("&redirect_uri=").append(URLEncoder.encode(redirectUri, StandardCharsets.UTF_8));
             authUrl.append("&response_type=code");
-            authUrl.append("&scope=").append(URLEncoder.encode(scopes, StandardCharsets.UTF_8));
+            authUrl.append("&scope=").append(URLEncoder.encode(effectiveScopes, StandardCharsets.UTF_8));
             authUrl.append("&state=").append(state);
 
             if (enablePkce) {
