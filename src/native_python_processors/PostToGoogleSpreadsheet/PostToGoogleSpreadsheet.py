@@ -595,7 +595,7 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
 
         if not existing_data:
             # Sheet is empty, treat as REPLACE
-            return self._replace_all(access_token, spreadsheet_id, sheet_name, headers, rows, "A1", include_header, value_input_option)
+            return self._replace_all(access_token, spreadsheet_id, sheet_name, headers, rows, "A1", include_header, value_input_option, False)
 
         # Assume first row is headers
         existing_headers = existing_data[0]
@@ -608,7 +608,7 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
                 # If identifier field doesn't exist, we need to add it - treat as new data
                 self.logger.warn(f"Identifier field '{field}' not found in existing headers. Adding as new column.")
                 # For simplicity, we'll append all rows as new
-                return self._append_rows(access_token, spreadsheet_id, sheet_name, headers, rows, False, value_input_option)
+                return self._append_rows(access_token, spreadsheet_id, sheet_name, headers, rows, False, value_input_option, False)
             identifier_indices.append(existing_headers.index(field))
 
         # Build lookup map for existing rows
@@ -649,7 +649,7 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
 
         # Execute inserts
         if new_rows:
-            self._append_rows(access_token, spreadsheet_id, sheet_name, headers, new_rows, False, value_input_option)
+            self._append_rows(access_token, spreadsheet_id, sheet_name, headers, new_rows, False, value_input_option, False)
 
         self.logger.info(f"UPSERT completed: {rows_updated} updated, {rows_inserted} inserted")
         return rows_updated + rows_inserted
