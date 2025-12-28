@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.entity.UrlEncodedFormEntity;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -509,6 +510,12 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
     }
 
     private String extractUserFromToken(String accessToken) {
+        // For Google, call the userinfo endpoint
+        if (provider == OAuth2Provider.GOOGLE) {
+            return fetchGoogleUserInfo(accessToken);
+        }
+
+        // For Microsoft, try to decode the JWT
         try {
             DecodedJWT jwt = JWT.decode(accessToken);
             String email = jwt.getClaim("email").asString();
@@ -523,6 +530,38 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
             return sub != null ? sub : "Unknown User";
         } catch (Exception e) {
             getLogger().warn("Failed to extract user from token", e);
+            return "Unknown User";
+        }
+    }
+
+    private String fetchGoogleUserInfo(String accessToken) {
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            org.apache.hc.client5.http.classic.methods.HttpGet get =
+                new org.apache.hc.client5.http.classic.methods.HttpGet("https://www.googleapis.com/oauth2/v2/userinfo");
+            get.setHeader("Authorization", "Bearer " + accessToken);
+
+            try (CloseableHttpResponse response = httpClient.execute(get)) {
+                String responseBody = EntityUtils.toString(response.getEntity());
+
+                if (response.getCode() == 200) {
+                    JsonNode userInfo = objectMapper.readTree(responseBody);
+                    String email = userInfo.has("email") ? userInfo.get("email").asText() : null;
+                    if (email != null) {
+                        return email;
+                    }
+                    String name = userInfo.has("name") ? userInfo.get("name").asText() : null;
+                    if (name != null) {
+                        return name;
+                    }
+                }
+                getLogger().warn("Failed to fetch Google user info: {}", responseBody);
+                return "Unknown User";
+            } catch (ParseException e) {
+                getLogger().warn("Failed to parse Google userinfo response", e);
+                return "Unknown User";
+            }
+        } catch (Exception e) {
+            getLogger().warn("Failed to fetch Google user info", e);
             return "Unknown User";
         }
     }
