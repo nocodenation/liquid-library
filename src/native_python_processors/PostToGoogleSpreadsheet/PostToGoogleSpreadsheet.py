@@ -131,6 +131,19 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
         validators=[StandardValidators.BOOLEAN_VALIDATOR]
     )
 
+    HEADER_MISMATCH_STRATEGY = PropertyDescriptor(
+        name="Header Mismatch Strategy",
+        description="How to handle incoming data with field names not found in the spreadsheet:\n"
+                    "ADD_COLUMNS - Add new columns for unrecognized field names (appends to the right)\n"
+                    "IGNORE_FIELDS - Skip values for unrecognized field names and log a warning\n"
+                    "FAIL - Reject the data with an error listing the unrecognized field names\n"
+                    "Only applies to UPDATE and UPSERT modes when the spreadsheet already has headers.",
+        required=True,
+        default_value="FAIL",
+        allowable_values=["ADD_COLUMNS", "IGNORE_FIELDS", "FAIL"],
+        validators=[StandardValidators.NON_EMPTY_VALIDATOR]
+    )
+
     def getPropertyDescriptors(self):
         return [
             self.AUTHENTICATION_SERVICE,
@@ -142,7 +155,8 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
             self.INCLUDE_HEADER_ROW,
             self.INPUT_FORMAT,
             self.VALUE_INPUT_OPTION,
-            self.FORMAT_AS_TABLE
+            self.FORMAT_AS_TABLE,
+            self.HEADER_MISMATCH_STRATEGY
         ]
 
     def onScheduled(self, context):
@@ -188,6 +202,7 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
             input_format = context.getProperty(self.INPUT_FORMAT).getValue()
             value_input_option = context.getProperty(self.VALUE_INPUT_OPTION).getValue()
             format_as_table = context.getProperty(self.FORMAT_AS_TABLE).asBoolean()
+            header_mismatch_strategy = context.getProperty(self.HEADER_MISMATCH_STRATEGY).getValue()
 
             # Parse identifier fields
             identifier_fields = []
@@ -220,10 +235,10 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
                                                  start_cell, include_header, value_input_option, format_as_table)
             elif write_mode == "UPDATE":
                 rows_written = self._update_rows(access_token, spreadsheet_id, sheet_name, headers, rows,
-                                                identifier_fields, value_input_option)
+                                                identifier_fields, value_input_option, header_mismatch_strategy)
             elif write_mode == "UPSERT":
                 rows_written = self._upsert_rows(access_token, spreadsheet_id, sheet_name, headers, rows,
-                                                identifier_fields, include_header, value_input_option)
+                                                identifier_fields, include_header, value_input_option, header_mismatch_strategy)
             else:
                 raise ValueError(f"Unsupported write mode: {write_mode}")
 
@@ -529,7 +544,35 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
         except Exception as e:
             self.logger.warn(f"Error applying table formatting: {str(e)}")
 
-    def _update_rows(self, access_token, spreadsheet_id, sheet_name, headers, rows, identifier_fields, value_input_option):
+    def _add_new_columns(self, access_token, spreadsheet_id, sheet_name, existing_headers, new_headers, value_input_option):
+        """Add new column headers to the spreadsheet."""
+        # Append new headers to the first row
+        start_col = len(existing_headers)
+        start_col_letter = self._column_letter(start_col + 1)  # +1 because columns are 1-indexed
+
+        range_notation = f"{sheet_name}!{start_col_letter}1"
+        update_url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{range_notation}"
+
+        headers_dict = {
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json'
+        }
+
+        body = {
+            'values': [new_headers],
+            'majorDimension': 'COLUMNS'  # Write headers horizontally
+        }
+
+        params = {
+            'valueInputOption': value_input_option
+        }
+
+        response = requests.put(update_url, headers=headers_dict, json=body, params=params)
+
+        if response.status_code != 200:
+            raise Exception(f"Failed to add new columns: {response.status_code} - {response.text}")
+
+    def _update_rows(self, access_token, spreadsheet_id, sheet_name, headers, rows, identifier_fields, value_input_option, header_mismatch_strategy):
         """Update existing rows based on identifier fields."""
         # Get existing data
         existing_data = self._get_sheet_data(access_token, spreadsheet_id, sheet_name)
@@ -540,6 +583,31 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
         # Assume first row is headers
         existing_headers = existing_data[0]
         existing_rows = existing_data[1:]
+
+        # Check for header mismatches and handle according to strategy
+        incoming_headers_set = set(headers)
+        existing_headers_set = set(existing_headers)
+        unrecognized_headers = incoming_headers_set - existing_headers_set
+
+        if unrecognized_headers:
+            if header_mismatch_strategy == "FAIL":
+                recognized = sorted(existing_headers_set & incoming_headers_set)
+                unrecognized = sorted(unrecognized_headers)
+                error_msg = (f"Data contains unrecognized field header names: {', '.join(unrecognized)}. "
+                           f"Recognized headers: {', '.join(recognized)}. "
+                           f"To fix: (1) Set 'Header Mismatch Strategy' to 'ADD_COLUMNS' to add new columns, "
+                           f"(2) Set to 'IGNORE_FIELDS' to skip unrecognized fields, "
+                           f"(3) Or update your data to only include these headers: {', '.join(existing_headers)}")
+                raise Exception(error_msg)
+            elif header_mismatch_strategy == "IGNORE_FIELDS":
+                self.logger.warn(f"Ignoring unrecognized field headers: {', '.join(sorted(unrecognized_headers))}")
+            elif header_mismatch_strategy == "ADD_COLUMNS":
+                self.logger.info(f"Adding new columns for unrecognized headers: {', '.join(sorted(unrecognized_headers))}")
+                # Add new headers to the spreadsheet
+                new_headers = sorted(unrecognized_headers)
+                self._add_new_columns(access_token, spreadsheet_id, sheet_name, existing_headers, new_headers, value_input_option)
+                # Update existing_headers to include new ones
+                existing_headers.extend(new_headers)
 
         # Find identifier column indices
         identifier_indices = []
@@ -572,6 +640,9 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
                 # Map new row values to existing header order
                 updated_row = []
                 for header in existing_headers:
+                    if header_mismatch_strategy == "IGNORE_FIELDS" and header in unrecognized_headers:
+                        # Skip unrecognized headers when IGNORE_FIELDS strategy
+                        continue
                     updated_row.append(row_dict.get(header, ''))
 
                 range_notation = f"{sheet_name}!A{row_number}:{self._column_letter(len(existing_headers))}{row_number}"
@@ -588,7 +659,7 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
 
         return rows_updated
 
-    def _upsert_rows(self, access_token, spreadsheet_id, sheet_name, headers, rows, identifier_fields, include_header, value_input_option):
+    def _upsert_rows(self, access_token, spreadsheet_id, sheet_name, headers, rows, identifier_fields, include_header, value_input_option, header_mismatch_strategy):
         """Update existing rows or insert new ones."""
         # Get existing data
         existing_data = self._get_sheet_data(access_token, spreadsheet_id, sheet_name)
@@ -601,14 +672,36 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
         existing_headers = existing_data[0]
         existing_rows = existing_data[1:]
 
+        # Check for header mismatches and handle according to strategy
+        incoming_headers_set = set(headers)
+        existing_headers_set = set(existing_headers)
+        unrecognized_headers = incoming_headers_set - existing_headers_set
+
+        if unrecognized_headers:
+            if header_mismatch_strategy == "FAIL":
+                recognized = sorted(existing_headers_set & incoming_headers_set)
+                unrecognized = sorted(unrecognized_headers)
+                error_msg = (f"Data contains unrecognized field header names: {', '.join(unrecognized)}. "
+                           f"Recognized headers: {', '.join(recognized)}. "
+                           f"To fix: (1) Set 'Header Mismatch Strategy' to 'ADD_COLUMNS' to add new columns, "
+                           f"(2) Set to 'IGNORE_FIELDS' to skip unrecognized fields, "
+                           f"(3) Or update your data to only include these headers: {', '.join(existing_headers)}")
+                raise Exception(error_msg)
+            elif header_mismatch_strategy == "IGNORE_FIELDS":
+                self.logger.warn(f"Ignoring unrecognized field headers: {', '.join(sorted(unrecognized_headers))}")
+            elif header_mismatch_strategy == "ADD_COLUMNS":
+                self.logger.info(f"Adding new columns for unrecognized headers: {', '.join(sorted(unrecognized_headers))}")
+                # Add new headers to the spreadsheet
+                new_headers = sorted(unrecognized_headers)
+                self._add_new_columns(access_token, spreadsheet_id, sheet_name, existing_headers, new_headers, value_input_option)
+                # Update existing_headers to include new ones
+                existing_headers.extend(new_headers)
+
         # Find identifier column indices
         identifier_indices = []
         for field in identifier_fields:
             if field not in existing_headers:
-                # If identifier field doesn't exist, we need to add it - treat as new data
-                self.logger.warn(f"Identifier field '{field}' not found in existing headers. Adding as new column.")
-                # For simplicity, we'll append all rows as new
-                return self._append_rows(access_token, spreadsheet_id, sheet_name, headers, rows, False, value_input_option, False)
+                raise Exception(f"Identifier field '{field}' not found in sheet headers")
             identifier_indices.append(existing_headers.index(field))
 
         # Build lookup map for existing rows
@@ -630,7 +723,14 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
             if key in existing_map:
                 # Update existing row
                 row_number = existing_map[key]
-                updated_row = [row_dict.get(header, '') for header in existing_headers]
+
+                # Map new row values to existing header order
+                updated_row = []
+                for header in existing_headers:
+                    if header_mismatch_strategy == "IGNORE_FIELDS" and header in unrecognized_headers:
+                        # Skip unrecognized headers when IGNORE_FIELDS strategy
+                        continue
+                    updated_row.append(row_dict.get(header, ''))
 
                 range_notation = f"{sheet_name}!A{row_number}:{self._column_letter(len(existing_headers))}{row_number}"
                 updates.append({
