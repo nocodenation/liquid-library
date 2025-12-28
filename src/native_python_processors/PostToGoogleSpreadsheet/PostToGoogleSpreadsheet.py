@@ -549,8 +549,9 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
         # Append new headers to the first row
         start_col = len(existing_headers)
         start_col_letter = self._column_letter(start_col + 1)  # +1 because columns are 1-indexed
+        end_col_letter = self._column_letter(start_col + len(new_headers))
 
-        range_notation = f"{sheet_name}!{start_col_letter}1"
+        range_notation = f"{sheet_name}!{start_col_letter}1:{end_col_letter}1"
         update_url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{range_notation}"
 
         headers_dict = {
@@ -560,7 +561,7 @@ Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV 
 
         body = {
             'values': [new_headers],
-            'majorDimension': 'COLUMNS'  # Write headers horizontally
+            'majorDimension': 'ROWS'  # Write headers as a single row
         }
 
         params = {
