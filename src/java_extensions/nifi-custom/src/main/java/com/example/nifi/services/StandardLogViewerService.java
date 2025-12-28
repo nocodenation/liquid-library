@@ -11,9 +11,9 @@ import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.ee11.servlet.ServletContextHandler;
-import org.eclipse.jetty.ee11.servlet.ServletHolder;
-import org.eclipse.jetty.ee11.websocket.server.config.JettyWebSocketServletContainerInitializer;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.websocket.server.config.JettyWebSocketServletContainerInitializer;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
@@ -210,36 +210,7 @@ public class StandardLogViewerService extends AbstractControllerService implemen
     }
 
     private void broadcast(String logName, String message) {
-        for (Session session : sessions) {
-            if (session.isOpen()) {
-                // Check subscription
-                String sub = (String) session.getUpgradeRequest().getParameterMap()
-                        .getOrDefault("log", List.of("Default")).get(0);
-                // Better: Store subscription in a map or UserProperties.
-                // For now, let's use a simpler approach: LogWebSocket stores it.
-                // We can't access LogWebSocket instance easily here from the Session object in
-                // Jetty 9/10/11 API nuances?
-                // Actually, we can attach user properties to the session.
-
-                // However, we need to access the LogWebSocket instance or session property.
-                // Let's assume the session has a property "subscribedLog".
-                // In Jetty WebSocket API, we might use session.getRemote() or similar, but for
-                // state...
-                // Let's stick to: The WebSocket generic loop handles dispatch?
-                // No, we are iterating sessions here.
-
-                // Alternative: LogWebSocket instance registers itself to a map <LogName,
-                // List<Session>>?
-                // That would be more efficient.
-                // But cleaning up is harder.
-
-                // Let's use `session.getUpgradeRequest().getSession()`? No.
-                // Let's rely on the fact that we can cast? No.
-
-                // PROPOSAL: Use a ConcurrentHashMap<Session, String> subscriptions.
-            }
-        }
-        // Implementation moved to `broadcastToSubscribers`
+        // Use the subscriptions map to broadcast to relevant clients
         broadcastToSubscribers(logName, message);
     }
 
