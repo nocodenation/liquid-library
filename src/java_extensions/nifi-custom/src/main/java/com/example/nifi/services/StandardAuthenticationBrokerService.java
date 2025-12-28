@@ -44,6 +44,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Tags({"oauth2", "authentication", "google", "microsoft", "token"})
@@ -177,6 +180,7 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
     private final ReentrantLock tokenRefreshLock = new ReentrantLock();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final SecureRandom secureRandom = new SecureRandom();
+    private ScheduledExecutorService tokenRefreshScheduler;
 
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
@@ -262,12 +266,16 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
         // Start web server
         startWebServer();
 
+        // Start background token refresh scheduler
+        startTokenRefreshScheduler();
+
         getLogger().info("StandardAuthenticationBrokerService enabled for {} on port {}",
                 provider.getDisplayName(), webServerPort);
     }
 
     @OnDisabled
     public void onDisabled() {
+        stopTokenRefreshScheduler();
         stopWebServer();
         getLogger().info("StandardAuthenticationBrokerService disabled");
     }
@@ -395,6 +403,54 @@ public class StandardAuthenticationBrokerService extends AbstractControllerServi
                 getLogger().info("Web server stopped");
             } catch (Exception e) {
                 getLogger().error("Error stopping web server", e);
+            }
+        }
+    }
+
+    private void startTokenRefreshScheduler() {
+        // Create a scheduled executor service with a single thread
+        tokenRefreshScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread thread = new Thread(r, "OAuth2-Token-Refresh");
+            thread.setDaemon(true);
+            return thread;
+        });
+
+        // Schedule token refresh task to run every minute
+        // This checks if the token is expiring soon and refreshes it proactively
+        tokenRefreshScheduler.scheduleWithFixedDelay(() -> {
+            try {
+                if (currentToken != null && currentToken.isExpiringSoon(tokenRefreshBuffer)) {
+                    getLogger().info("Token expiring soon for user {}. Proactively refreshing...",
+                            currentToken.getAuthenticatedUser());
+                    refreshToken();
+                    getLogger().info("Token successfully refreshed for user {}",
+                            currentToken.getAuthenticatedUser());
+                }
+            } catch (Exception e) {
+                getLogger().error("Background token refresh failed for user {}: {}",
+                        currentToken != null ? currentToken.getAuthenticatedUser() : "unknown",
+                        e.getMessage(), e);
+            }
+        }, 60, 60, TimeUnit.SECONDS);  // Start after 60 seconds, then run every 60 seconds
+
+        getLogger().info("Token refresh scheduler started (checking every 60 seconds)");
+    }
+
+    private void stopTokenRefreshScheduler() {
+        if (tokenRefreshScheduler != null) {
+            try {
+                getLogger().info("Stopping token refresh scheduler...");
+                tokenRefreshScheduler.shutdown();
+                if (!tokenRefreshScheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                    tokenRefreshScheduler.shutdownNow();
+                    getLogger().warn("Token refresh scheduler did not terminate gracefully, forced shutdown");
+                } else {
+                    getLogger().info("Token refresh scheduler stopped");
+                }
+            } catch (InterruptedException e) {
+                tokenRefreshScheduler.shutdownNow();
+                Thread.currentThread().interrupt();
+                getLogger().error("Error stopping token refresh scheduler", e);
             }
         }
     }
