@@ -1,1 +1,1 @@
-com.example.nifi.processors.RouteOnJSONMap
+com.example.nifi.processors.SetDynamicAttribute
