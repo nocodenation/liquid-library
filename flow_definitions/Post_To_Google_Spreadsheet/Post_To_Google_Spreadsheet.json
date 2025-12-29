@@ -129,7 +129,7 @@
         },
         "properties": {
           "Format as Table": "true",
-          "Spreadsheet ID": "12JSsbi1Ph_AvDuxEDNaxWPazDrNgSWhJUvO8UFg2o1o",
+          "Spreadsheet ID": null,
           "Header Mismatch Strategy": "ADD_COLUMNS",
           "Input Format": "JSON",
           "Authentication Service": null,
