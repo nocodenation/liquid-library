@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+  
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.nocodenation.nifi</groupId>
+        <artifactId>oauth-token-broker</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>oauth-token-broker-processors-nar</artifactId>
+    <packaging>nar</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.nocodenation.nifi</groupId>
+            <artifactId>oauth-token-broker-processors</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <!-- NAR dependency on the API so the processor can use the service at runtime -->
+        <dependency>
+            <groupId>org.nocodenation.nifi</groupId>
+            <artifactId>oauth-token-broker-service-api-nar</artifactId>
+            <version>1.0.0</version>
+            <type>nar</type>
+        </dependency>
+    </dependencies>
+</project>
