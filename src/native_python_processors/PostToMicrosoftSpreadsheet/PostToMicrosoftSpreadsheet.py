@@ -400,7 +400,33 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
 
         if response.status_code == 200:
             range_data = response.json()
-            return range_data.get('values', [])
+            values = range_data.get('values', [])
+            address = range_data.get('address', '')
+
+            # Log for debugging
+            self.logger.debug(f"UsedRange address: {address}, values shape: {len(values)}x{len(values[0]) if values else 0}")
+
+            # Check if the range starts at a column other than A
+            # Address format: "Sheet1!B1:G4" - we need to detect if it starts with B instead of A
+            if address and '!' in address:
+                range_part = address.split('!')[1]  # Get "B1:G4"
+                start_cell = range_part.split(':')[0]  # Get "B1"
+
+                # Extract column letter
+                import re
+                match = re.match(r'([A-Z]+)(\d+)', start_cell.upper())
+                if match:
+                    start_col_letter = match.group(1)
+                    if start_col_letter != 'A':
+                        # The data starts at a column other than A - this is the bug!
+                        # Microsoft is including row numbers as column A
+                        self.logger.warn(f"UsedRange starts at column {start_col_letter}, not A. This may indicate row numbers are included.")
+                        # Skip the first column in each row
+                        if values:
+                            values = [row[1:] if len(row) > 1 else row for row in values]
+                            self.logger.info(f"Removed first column from usedRange data. New shape: {len(values)}x{len(values[0]) if values else 0}")
+
+            return values
         elif response.status_code == 404:
             # Worksheet doesn't exist or is empty
             return []
@@ -584,8 +610,11 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
         # Get existing data
         existing_data = self._get_worksheet_range(access_token, workbook_url, worksheet_name, session_id)
 
+        self.logger.info(f"UPSERT: existing_data has {len(existing_data) if existing_data else 0} rows")
+
         if not existing_data:
             # Worksheet is empty, treat as REPLACE
+            self.logger.info("UPSERT: Worksheet is empty, calling _replace_all")
             return self._replace_all(access_token, workbook_url, worksheet_name, headers, rows, "A1", include_header, session_id)
 
         # Assume first row is headers
@@ -650,8 +679,11 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
                         continue
                     updated_row.append(row_dict.get(header, ''))
 
-                end_col = self._column_letter(len(existing_headers))
-                range_address = f"{worksheet_name}!A{row_number}:{end_col}{row_number}"
+                # Write starting at column B if data starts at B (due to row numbers in column A)
+                start_col = 'B' if len(updated_row) < len(existing_headers) else 'A'
+                end_col_num = len(updated_row) + (1 if start_col == 'B' else 0)
+                end_col = self._column_letter(end_col_num)
+                range_address = f"{worksheet_name}!{start_col}{row_number}:{end_col}{row_number}"
 
                 url = f"{workbook_url}/worksheets/{worksheet_name}/range(address='{range_address}')"
                 headers_dict = self._get_session_headers(access_token, session_id)
@@ -660,10 +692,14 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
                     'values': [updated_row]
                 }
 
+                self.logger.info(f"UPSERT UPDATE: Patching range {range_address} with {len(updated_row)} values (existing_headers: {len(existing_headers)})")
                 response = requests.patch(url, headers=headers_dict, json=body)
 
                 if response.status_code == 200:
                     rows_updated += 1
+                    self.logger.info(f"UPSERT UPDATE: Successfully updated row {row_number}")
+                else:
+                    self.logger.warn(f"UPSERT UPDATE: Failed with status {response.status_code}: {response.text}")
             else:
                 # Insert new row
                 new_rows.append(row)
