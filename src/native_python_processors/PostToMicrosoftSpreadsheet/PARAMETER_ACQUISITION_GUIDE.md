@@ -9,6 +9,18 @@ The processor supports **two methods** for identifying Excel files:
 - **Mode 1: File Path** (Recommended) - Simple path like `/Documents/sales.xlsx`
 - **Mode 2: Drive ID + Item ID** (Advanced) - For SharePoint sites and specific drives
 
+## ⚠️ Important Note About Write Modes
+
+**Recommended Write Mode: REPLACE**
+- REPLACE mode works reliably across all tenant configurations
+- Clears and rewrites data without column offset issues
+
+**UPSERT/UPDATE Modes:**
+- May exhibit a one-column offset due to Microsoft Graph API behavior
+- The API sometimes includes row numbers as the first column
+- Use with caution and validate results
+- See processor logs for "UsedRange starts at column B" warnings
+
 ---
 
 ## Mode 1: File Path Method (Recommended)
