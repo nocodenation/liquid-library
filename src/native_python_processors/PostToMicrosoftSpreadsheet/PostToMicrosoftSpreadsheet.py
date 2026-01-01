@@ -16,11 +16,10 @@ class PostToMicrosoftSpreadsheet(FlowFileTransform):
         implements = ['org.apache.nifi.python.processor.FlowFileTransform']
 
     class ProcessorDetails:
-        version = '0.0.1-SNAPSHOT'
+        version = '0.0.2-SNAPSHOT'
         description = """Posts data to a Microsoft Excel spreadsheet using the Microsoft Graph API.
 Uses the AuthenticationBrokerService for OAuth2 authentication.
-Supports multiple write modes: APPEND (add rows), UPDATE (modify existing rows),
-UPSERT (update if exists, insert if not), and REPLACE (clear and write).
+Supports write modes: REPLACE (clear and write), APPEND (add rows), UPDATE (update matching rows, append others).
 Accepts JSON (array of objects, headers+rows array, headers+rows object) or CSV format.
 Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
         tags = ['microsoft', 'excel', 'spreadsheet', 'write', 'oauth2', 'graph', 'python']
@@ -92,14 +91,15 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
     WRITE_MODE = PropertyDescriptor(
         name="Write Mode",
         description="Determines how data is written to the spreadsheet:\n"
-                    "APPEND - Add new rows to the end of existing data\n"
-                    "UPDATE - Update existing rows based on identifier fields\n"
-                    "UPSERT - Update existing rows or insert new ones if not found\n"
-                    "REPLACE - Clear all data and write new data",
+                    "REPLACE - Clear all data and write new data\n"
+                    "APPEND - Add new rows to the end; if sheet is empty, acts like REPLACE\n"
+                    "UPDATE - Update rows matching Identifier Fields; if no match found, APPEND the row\n"
+                    "Supports Expression Language to dynamically set mode from FlowFile attributes.",
         required=True,
-        default_value="APPEND",
-        allowable_values=["APPEND", "UPDATE", "UPSERT", "REPLACE"],
-        validators=[StandardValidators.NON_EMPTY_VALIDATOR]
+        default_value="REPLACE",
+        allowable_values=["REPLACE", "APPEND", "UPDATE"],
+        validators=[StandardValidators.NON_EMPTY_VALIDATOR],
+        expression_language_scope=ExpressionLanguageScope.FLOWFILE_ATTRIBUTES
     )
 
     START_CELL = PropertyDescriptor(
@@ -114,8 +114,9 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
 
     IDENTIFIER_FIELDS = PropertyDescriptor(
         name="Identifier Fields",
-        description="Comma-separated list of field names to use as row identifiers for UPDATE and UPSERT modes. "
-                    "Example: 'Email' or 'FirstName,LastName'. Rows with matching identifier values will be updated.",
+        description="Comma-separated list of field names to use as row identifiers for UPDATE mode. "
+                    "Example: 'Email' or 'FirstName,LastName'. Rows with matching identifier values will be updated; "
+                    "rows without a match will be appended. Supports Expression Language.",
         required=False,
         validators=[StandardValidators.NON_EMPTY_VALIDATOR],
         expression_language_scope=ExpressionLanguageScope.FLOWFILE_ATTRIBUTES
@@ -147,7 +148,7 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
                     "ADD_COLUMNS - Add new columns for unrecognized field names (appends to the right)\n"
                     "IGNORE_FIELDS - Skip values for unrecognized field names and log a warning\n"
                     "FAIL - Reject the data with an error listing the unrecognized field names\n"
-                    "Only applies to UPDATE and UPSERT modes when the spreadsheet already has headers.",
+                    "Only applies to UPDATE mode when the spreadsheet already has headers.",
         required=True,
         default_value="FAIL",
         allowable_values=["ADD_COLUMNS", "IGNORE_FIELDS", "FAIL"],
@@ -230,23 +231,30 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
 
             # Get other properties
             worksheet_name = context.getProperty(self.WORKSHEET_NAME).evaluateAttributeExpressions(flowfile).getValue()
-            write_mode = context.getProperty(self.WRITE_MODE).getValue()
+            write_mode = context.getProperty(self.WRITE_MODE).evaluateAttributeExpressions(flowfile).getValue()
             start_cell = context.getProperty(self.START_CELL).evaluateAttributeExpressions(flowfile).getValue()
             identifier_fields_str = context.getProperty(self.IDENTIFIER_FIELDS).evaluateAttributeExpressions(flowfile).getValue()
             include_header = context.getProperty(self.INCLUDE_HEADER_ROW).asBoolean()
             input_format = context.getProperty(self.INPUT_FORMAT).getValue()
             header_mismatch_strategy = context.getProperty(self.HEADER_MISMATCH_STRATEGY).getValue()
 
+            # Validate write mode
+            valid_modes = ['REPLACE', 'APPEND', 'UPDATE']
+            if write_mode not in valid_modes:
+                self.logger.error(f"Invalid Write Mode: {write_mode}. Must be one of: {', '.join(valid_modes)}")
+                return FlowFileTransformResult(relationship="failure",
+                                              attributes={"error": f"Invalid Write Mode: {write_mode}"})
+
             # Parse identifier fields
             identifier_fields = []
             if identifier_fields_str:
                 identifier_fields = [f.strip() for f in identifier_fields_str.split(',')]
 
-            # Validate identifier fields for UPDATE/UPSERT modes
-            if write_mode in ['UPDATE', 'UPSERT'] and not identifier_fields:
-                self.logger.error(f"Identifier Fields are required for {write_mode} mode")
+            # Validate identifier fields for UPDATE mode
+            if write_mode == 'UPDATE' and not identifier_fields:
+                self.logger.error("Identifier Fields are required for UPDATE mode")
                 return FlowFileTransformResult(relationship="failure",
-                                              attributes={"error": f"Identifier Fields required for {write_mode} mode"})
+                                              attributes={"error": "Identifier Fields required for UPDATE mode"})
 
             # Read FlowFile content
             content = flowfile.getContentsAsBytes().decode('utf-8')
@@ -271,9 +279,6 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
                                                  start_cell, include_header, session_id)
             elif write_mode == "UPDATE":
                 rows_written = self._update_rows(access_token, workbook_url, worksheet_name, headers, rows,
-                                                identifier_fields, header_mismatch_strategy, session_id)
-            elif write_mode == "UPSERT":
-                rows_written = self._upsert_rows(access_token, workbook_url, worksheet_name, headers, rows,
                                                 identifier_fields, include_header, header_mismatch_strategy, session_id)
             else:
                 raise ValueError(f"Unsupported write mode: {write_mode}")
@@ -391,10 +396,15 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
 
         raise ValueError(f"Unsupported JSON format. Expected array of objects or object with 'headers' and 'rows' fields.")
 
-    def _get_worksheet_range(self, access_token, workbook_url, worksheet_name, session_id):
-        """Get the used range of a worksheet."""
+    def _get_worksheet_range(self, access_token, workbook_url, worksheet_name, session_id, use_session=True):
+        """Get the used range of a worksheet.
+
+        Args:
+            use_session: If False, bypasses session caching to get fresh data.
+                        Use False when checking for existing data in UPSERT mode to avoid stale cache.
+        """
         url = f"{workbook_url}/worksheets/{worksheet_name}/usedRange"
-        headers = self._get_session_headers(access_token, session_id)
+        headers = self._get_session_headers(access_token, session_id if use_session else None)
 
         response = requests.get(url, headers=headers)
 
@@ -404,27 +414,12 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
             address = range_data.get('address', '')
 
             # Log for debugging
-            self.logger.debug(f"UsedRange address: {address}, values shape: {len(values)}x{len(values[0]) if values else 0}")
+            self.logger.info(f"UsedRange address: {address}, values shape: {len(values)}x{len(values[0]) if values else 0}")
 
-            # Check if the range starts at a column other than A
-            # Address format: "Sheet1!B1:G4" - we need to detect if it starts with B instead of A
-            if address and '!' in address:
-                range_part = address.split('!')[1]  # Get "B1:G4"
-                start_cell = range_part.split(':')[0]  # Get "B1"
-
-                # Extract column letter
-                import re
-                match = re.match(r'([A-Z]+)(\d+)', start_cell.upper())
-                if match:
-                    start_col_letter = match.group(1)
-                    if start_col_letter != 'A':
-                        # The data starts at a column other than A - this is the bug!
-                        # Microsoft is including row numbers as column A
-                        self.logger.warn(f"UsedRange starts at column {start_col_letter}, not A. This may indicate row numbers are included.")
-                        # Skip the first column in each row
-                        if values:
-                            values = [row[1:] if len(row) > 1 else row for row in values]
-                            self.logger.info(f"Removed first column from usedRange data. New shape: {len(values)}x{len(values[0]) if values else 0}")
+            # Note: Microsoft may return address like "Sheet1!B1:G4" (starting at B) but the values
+            # array is correctly sized and does NOT include row numbers. The "B" in the address just
+            # indicates the visual range in Excel UI which displays row numbers in column A.
+            # We should NOT strip any columns from the values array.
 
             return values
         elif response.status_code == 404:
@@ -439,7 +434,8 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
         existing_data = self._get_worksheet_range(access_token, workbook_url, worksheet_name, session_id)
 
         values_to_append = []
-        is_new_worksheet = not existing_data
+        # Worksheet is considered new/empty if no data OR only empty cells
+        is_new_worksheet = not existing_data or (len(existing_data) == 1 and all(cell == '' for cell in existing_data[0]))
 
         # If worksheet is empty and include_header is true, add headers first
         if is_new_worksheet and include_header:
@@ -448,7 +444,12 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
         values_to_append.extend(rows)
 
         # Determine the starting row
-        start_row = len(existing_data) + 1 if existing_data else 1
+        # If worksheet is truly empty (including sheets with only empty cells), start at row 1
+        if is_new_worksheet:
+            start_row = 1
+        else:
+            start_row = len(existing_data) + 1
+
         end_col = self._column_letter(len(headers))
         range_address = f"{worksheet_name}!A{start_row}:{end_col}{start_row + len(values_to_append) - 1}"
 
@@ -468,18 +469,37 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
 
     def _replace_all(self, access_token, workbook_url, worksheet_name, headers, rows, start_cell, include_header, session_id):
         """Clear all data and write new data."""
-        # Clear worksheet
+        import time
+        import re
+
+        # Close existing session if any, to invalidate cache before clearing
+        if session_id:
+            self.logger.info("REPLACE: Closing existing session before clear to invalidate cache")
+            self._close_session(access_token, workbook_url, session_id)
+            # Give server a moment to process session closure
+            time.sleep(0.5)
+
+        # Clear worksheet WITHOUT session (fresh, no cache)
         url = f"{workbook_url}/worksheets/{worksheet_name}/range(address='A1:ZZ100000')/clear"
-        headers_dict = self._get_session_headers(access_token, session_id)
+        headers_dict = self._get_session_headers(access_token, None)  # No session
 
         body = {
             'applyTo': 'Contents'
         }
 
+        self.logger.info("REPLACE: Clearing worksheet without session")
         response = requests.post(url, headers=headers_dict, json=body)
 
         if response.status_code != 200 and response.status_code != 204:
             self.logger.warn(f"Failed to clear worksheet (continuing anyway): {response.status_code}")
+
+        # Wait for clear operation to propagate
+        self.logger.info("REPLACE: Waiting 1s for clear operation to propagate")
+        time.sleep(1)
+
+        # Create NEW session for writing
+        new_session_id = self._create_session(access_token, workbook_url)
+        self.logger.info(f"REPLACE: Created new session {new_session_id} for writing")
 
         # Write new data
         values_to_write = []
@@ -488,7 +508,6 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
         values_to_write.extend(rows)
 
         # Parse start cell (e.g., "A1" -> row 1, col A)
-        import re
         match = re.match(r'([A-Z]+)(\d+)', start_cell.upper())
         if not match:
             raise ValueError(f"Invalid start cell format: {start_cell}")
@@ -501,27 +520,41 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
 
         range_address = f"{worksheet_name}!{start_col_letter}{start_row}:{end_col}{end_row}"
 
+        self.logger.info(f"REPLACE: Writing to range {range_address}")
+        self.logger.info(f"REPLACE: headers = {headers}")
+        self.logger.info(f"REPLACE: values_to_write has {len(values_to_write)} rows x {len(values_to_write[0]) if values_to_write else 0} cols")
+        self.logger.info(f"REPLACE: First row data = {values_to_write[0] if values_to_write else 'None'}")
+
         url = f"{workbook_url}/worksheets/{worksheet_name}/range(address='{range_address}')"
-        headers_dict = self._get_session_headers(access_token, session_id)
+        headers_dict = self._get_session_headers(access_token, new_session_id)
 
         body = {
             'values': values_to_write
         }
 
         response = requests.patch(url, headers=headers_dict, json=body)
+        self.logger.info(f"REPLACE: Response status = {response.status_code}")
 
         if response.status_code != 200:
             raise Exception(f"Failed to write data: {response.status_code} - {response.text}")
 
+        # Close the new session we created
+        self._close_session(access_token, workbook_url, new_session_id)
+
         return len(rows)
 
-    def _update_rows(self, access_token, workbook_url, worksheet_name, headers, rows, identifier_fields, header_mismatch_strategy, session_id):
-        """Update existing rows based on identifier fields."""
+    def _update_rows(self, access_token, workbook_url, worksheet_name, headers, rows, identifier_fields, include_header, header_mismatch_strategy, session_id):
+        """Update existing rows matching identifier fields; append rows without a match.
+
+        If worksheet is empty, acts like APPEND.
+        """
         # Get existing data
         existing_data = self._get_worksheet_range(access_token, workbook_url, worksheet_name, session_id)
 
-        if not existing_data:
-            raise Exception("Cannot UPDATE: Worksheet is empty. Use APPEND or UPSERT mode instead.")
+        # If worksheet is empty or contains only empty cells, append all rows
+        if not existing_data or (len(existing_data) == 1 and all(cell == '' for cell in existing_data[0])):
+            self.logger.info("UPDATE: Worksheet is empty, appending all rows")
+            return self._append_rows(access_token, workbook_url, worksheet_name, headers, rows, include_header, session_id)
 
         # Assume first row is headers
         existing_headers = existing_data[0]
@@ -566,7 +599,8 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
             key = tuple(row[i] if i < len(row) else '' for i in identifier_indices)
             existing_map[key] = row_idx + 2  # +2 because row 1 is headers, 1-indexed
 
-        # Update rows
+        # Separate updates and appends
+        rows_to_append = []
         rows_updated = 0
 
         for row in rows:
@@ -574,6 +608,7 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
             key = tuple(row_dict.get(field, '') for field in identifier_fields)
 
             if key in existing_map:
+                # UPDATE: Match found, update the row
                 row_number = existing_map[key]
 
                 # Map new row values to existing header order
@@ -598,126 +633,29 @@ Works with Excel files (.xlsx) in OneDrive for Business or SharePoint."""
 
                 if response.status_code == 200:
                     rows_updated += 1
+                    self.logger.info(f"UPDATE: Updated row {row_number} with identifiers {key}")
                 else:
-                    self.logger.warn(f"Failed to update row {row_number}: {response.status_code}")
+                    self.logger.warn(f"UPDATE: Failed to update row {row_number}: {response.status_code}")
             else:
-                self.logger.warn(f"Row with identifiers {key} not found in worksheet, skipping")
+                # APPEND: No match found, will append this row
+                rows_to_append.append(row)
+                self.logger.info(f"UPDATE: No match for identifiers {key}, will append")
 
-        return rows_updated
-
-    def _upsert_rows(self, access_token, workbook_url, worksheet_name, headers, rows, identifier_fields, include_header, header_mismatch_strategy, session_id):
-        """Update existing rows or insert new ones."""
-        # Get existing data
-        existing_data = self._get_worksheet_range(access_token, workbook_url, worksheet_name, session_id)
-
-        self.logger.info(f"UPSERT: existing_data has {len(existing_data) if existing_data else 0} rows")
-
-        if not existing_data:
-            # Worksheet is empty, treat as REPLACE
-            self.logger.info("UPSERT: Worksheet is empty, calling _replace_all")
-            return self._replace_all(access_token, workbook_url, worksheet_name, headers, rows, "A1", include_header, session_id)
-
-        # Assume first row is headers
-        existing_headers = existing_data[0]
-        existing_rows = existing_data[1:]
-
-        # Check for header mismatches
-        incoming_headers_set = set(headers)
-        existing_headers_set = set(existing_headers)
-        unrecognized_headers = incoming_headers_set - existing_headers_set
-
-        if unrecognized_headers:
-            if header_mismatch_strategy == "FAIL":
-                recognized = sorted(existing_headers_set & incoming_headers_set)
-                unrecognized = sorted(unrecognized_headers)
-                error_msg = (f"Data contains unrecognized field header names: {', '.join(unrecognized)}. "
-                           f"Recognized headers: {', '.join(recognized)}. "
-                           f"To fix: (1) Set 'Header Mismatch Strategy' to 'ADD_COLUMNS' to add new columns, "
-                           f"(2) Set to 'IGNORE_FIELDS' to skip unrecognized fields, "
-                           f"(3) Or update your data to only include these headers: {', '.join(existing_headers)}")
-                raise Exception(error_msg)
-            elif header_mismatch_strategy == "IGNORE_FIELDS":
-                self.logger.warn(f"Ignoring unrecognized field headers: {', '.join(sorted(unrecognized_headers))}")
-            elif header_mismatch_strategy == "ADD_COLUMNS":
-                self.logger.info(f"Adding new columns for unrecognized headers: {', '.join(sorted(unrecognized_headers))}")
-                new_headers = sorted(unrecognized_headers)
-                self._add_new_columns(access_token, workbook_url, worksheet_name, existing_headers, new_headers, session_id)
-                # Re-fetch worksheet data
-                existing_data = self._get_worksheet_range(access_token, workbook_url, worksheet_name, session_id)
-                existing_headers = existing_data[0]
-                existing_rows = existing_data[1:]
-
-        # Find identifier column indices
-        identifier_indices = []
-        for field in identifier_fields:
-            if field not in existing_headers:
-                raise Exception(f"Identifier field '{field}' not found in worksheet headers")
-            identifier_indices.append(existing_headers.index(field))
-
-        # Build lookup map for existing rows
-        existing_map = {}
-        for row_idx, row in enumerate(existing_rows):
-            key = tuple(row[i] if i < len(row) else '' for i in identifier_indices)
-            existing_map[key] = row_idx + 2
-
-        # Separate updates and inserts
-        new_rows = []
-        rows_updated = 0
-        rows_inserted = 0
-
-        for row in rows:
-            row_dict = {headers[i]: row[i] if i < len(row) else '' for i in range(len(headers))}
-            key = tuple(row_dict.get(field, '') for field in identifier_fields)
-
-            if key in existing_map:
-                # Update existing row
-                row_number = existing_map[key]
-
-                updated_row = []
-                for header in existing_headers:
-                    if header_mismatch_strategy == "IGNORE_FIELDS" and header in unrecognized_headers:
-                        continue
-                    updated_row.append(row_dict.get(header, ''))
-
-                # Write starting at column B if data starts at B (due to row numbers in column A)
-                start_col = 'B' if len(updated_row) < len(existing_headers) else 'A'
-                end_col_num = len(updated_row) + (1 if start_col == 'B' else 0)
-                end_col = self._column_letter(end_col_num)
-                range_address = f"{worksheet_name}!{start_col}{row_number}:{end_col}{row_number}"
-
-                url = f"{workbook_url}/worksheets/{worksheet_name}/range(address='{range_address}')"
-                headers_dict = self._get_session_headers(access_token, session_id)
-
-                body = {
-                    'values': [updated_row]
-                }
-
-                self.logger.info(f"UPSERT UPDATE: Patching range {range_address} with {len(updated_row)} values (existing_headers: {len(existing_headers)})")
-                response = requests.patch(url, headers=headers_dict, json=body)
-
-                if response.status_code == 200:
-                    rows_updated += 1
-                    self.logger.info(f"UPSERT UPDATE: Successfully updated row {row_number}")
-                else:
-                    self.logger.warn(f"UPSERT UPDATE: Failed with status {response.status_code}: {response.text}")
-            else:
-                # Insert new row
-                new_rows.append(row)
-                rows_inserted += 1
-
-        # Execute inserts - remap new_rows to match existing spreadsheet column order
-        if new_rows:
+        # Append unmatched rows
+        rows_appended = 0
+        if rows_to_append:
+            self.logger.info(f"UPDATE: Appending {len(rows_to_append)} unmatched rows")
+            # Remap rows to match existing header order
             remapped_rows = []
-            for row in new_rows:
+            for row in rows_to_append:
                 row_dict = {headers[i]: row[i] if i < len(row) else '' for i in range(len(headers))}
                 remapped_row = [row_dict.get(header, '') for header in existing_headers]
                 remapped_rows.append(remapped_row)
 
-            # Append using existing_headers order
-            self._append_rows(access_token, workbook_url, worksheet_name, existing_headers, remapped_rows, False, session_id)
+            rows_appended = self._append_rows(access_token, workbook_url, worksheet_name, existing_headers, remapped_rows, False, session_id)
 
-        self.logger.info(f"UPSERT completed: {rows_updated} updated, {rows_inserted} inserted")
-        return rows_updated + rows_inserted
+        self.logger.info(f"UPDATE completed: {rows_updated} updated, {rows_appended} appended")
+        return rows_updated + rows_appended
 
     def _add_new_columns(self, access_token, workbook_url, worksheet_name, existing_headers, new_headers, session_id):
         """Add new column headers to the worksheet."""

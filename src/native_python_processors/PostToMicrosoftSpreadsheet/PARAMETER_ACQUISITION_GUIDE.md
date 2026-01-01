@@ -9,17 +9,35 @@ The processor supports **two methods** for identifying Excel files:
 - **Mode 1: File Path** (Recommended) - Simple path like `/Documents/sales.xlsx`
 - **Mode 2: Drive ID + Item ID** (Advanced) - For SharePoint sites and specific drives
 
-## ⚠️ Important Note About Write Modes
+## ⚠️ Important Notes About Write Modes
 
-**Recommended Write Mode: REPLACE**
-- REPLACE mode works reliably across all tenant configurations
-- Clears and rewrites data without column offset issues
+### Recommended Write Mode: REPLACE
 
-**UPSERT/UPDATE Modes:**
-- May exhibit a one-column offset due to Microsoft Graph API behavior
-- The API sometimes includes row numbers as the first column
-- Use with caution and validate results
-- See processor logs for "UsedRange starts at column B" warnings
+**REPLACE mode works most reliably** because it:
+- Clears the sheet and waits 1 second for the clear to propagate
+- Creates a fresh session after clearing to avoid cache issues
+- Writes data to a known location (Start Cell, default A1)
+
+### UPDATE and APPEND Modes - Cache Limitations
+
+**Microsoft Graph API Caching Behavior:**
+- UPDATE and APPEND modes rely on reading existing data using the `usedRange` API
+- Microsoft's API **aggressively caches** worksheet data for up to 60 seconds
+- After manually clearing a sheet in Excel, the API may still return stale data
+- This causes UPDATE/APPEND to write to incorrect locations or fail
+
+**Workarounds:**
+
+1. **Wait 60+ seconds** after manually clearing a sheet before using UPDATE/APPEND modes
+2. **Use REPLACE mode instead** - it handles clearing and writing in one operation with cache invalidation
+3. **Delete and recreate** the worksheet instead of clearing it
+4. **Use a different worksheet** for each write operation
+
+**Symptoms of cache issues:**
+- Data appears in unexpected columns (e.g., H-N instead of A-F)
+- Headers missing even when "Include Header Row" is enabled
+- Empty cells detected as data
+- See processor logs for "UsedRange address: Sheet1!H5:N7" or similar unexpected ranges
 
 ---
 
