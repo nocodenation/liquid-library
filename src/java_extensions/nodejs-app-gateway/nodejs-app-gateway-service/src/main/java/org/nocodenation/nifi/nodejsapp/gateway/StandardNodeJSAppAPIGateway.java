@@ -1,0 +1,268 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.nocodenation.nifi.nodejsapp.gateway;
+
+import org.apache.nifi.annotation.documentation.CapabilityDescription;
+import org.apache.nifi.annotation.documentation.Tags;
+import org.apache.nifi.annotation.lifecycle.OnDisabled;
+import org.apache.nifi.annotation.lifecycle.OnEnabled;
+import org.apache.nifi.components.PropertyDescriptor;
+import org.apache.nifi.controller.AbstractControllerService;
+import org.apache.nifi.controller.ConfigurationContext;
+import org.apache.nifi.expression.ExpressionLanguageScope;
+import org.apache.nifi.processor.util.StandardValidators;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
+
+/**
+ * Standard implementation of NodeJSAppAPIGateway controller service.
+ *
+ * <p>This service provides an HTTP gateway for Node.js applications to send requests
+ * into NiFi flows. It manages an embedded Jetty server with three servlet endpoints:</p>
+ * <ul>
+ *   <li>Public API - Handles incoming requests from Node.js apps</li>
+ *   <li>Internal Polling API - Allows Python processors to poll for requests</li>
+ *   <li>Metrics API - Exposes endpoint statistics</li>
+ * </ul>
+ *
+ * @since 1.0.0
+ */
+@Tags({"nodejs", "http", "gateway", "api"})
+@CapabilityDescription("Provides HTTP gateway for Node.js applications to send requests into NiFi flows")
+public class StandardNodeJSAppAPIGateway extends AbstractControllerService implements NodeJSAppAPIGateway {
+
+    public static final PropertyDescriptor GATEWAY_HOST = new PropertyDescriptor.Builder()
+            .name("Gateway Host")
+            .description("Host address to bind the HTTP gateway server to. Use 0.0.0.0 to listen on all interfaces, or 127.0.0.1 for localhost only.")
+            .required(true)
+            .defaultValue("0.0.0.0")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .expressionLanguageSupported(ExpressionLanguageScope.ENVIRONMENT)
+            .build();
+
+    public static final PropertyDescriptor GATEWAY_PORT = new PropertyDescriptor.Builder()
+            .name("Gateway Port")
+            .description("Port number for the HTTP gateway server")
+            .required(true)
+            .defaultValue("5050")
+            .addValidator(StandardValidators.PORT_VALIDATOR)
+            .expressionLanguageSupported(ExpressionLanguageScope.ENVIRONMENT)
+            .build();
+
+    public static final PropertyDescriptor MAX_QUEUE_SIZE = new PropertyDescriptor.Builder()
+            .name("Maximum Queue Size")
+            .description("Maximum number of requests that can be queued per endpoint before rejecting with 503")
+            .required(true)
+            .defaultValue("100")
+            .addValidator(StandardValidators.POSITIVE_INTEGER_VALIDATOR)
+            .build();
+
+    public static final PropertyDescriptor MAX_REQUEST_SIZE = new PropertyDescriptor.Builder()
+            .name("Maximum Request Size")
+            .description("Maximum size of request body in bytes")
+            .required(true)
+            .defaultValue("10485760")  // 10 MB
+            .addValidator(StandardValidators.POSITIVE_LONG_VALIDATOR)
+            .build();
+
+    public static final PropertyDescriptor ENABLE_CORS = new PropertyDescriptor.Builder()
+            .name("Enable CORS")
+            .description("Enable Cross-Origin Resource Sharing (CORS) for browser-based clients")
+            .required(true)
+            .allowableValues("true", "false")
+            .defaultValue("true")
+            .build();
+
+    private static final List<PropertyDescriptor> PROPERTY_DESCRIPTORS;
+
+    static {
+        List<PropertyDescriptor> props = new ArrayList<>();
+        props.add(GATEWAY_HOST);
+        props.add(GATEWAY_PORT);
+        props.add(MAX_QUEUE_SIZE);
+        props.add(MAX_REQUEST_SIZE);
+        props.add(ENABLE_CORS);
+        PROPERTY_DESCRIPTORS = Collections.unmodifiableList(props);
+    }
+
+    // Jetty server
+    private Server server;
+    private String gatewayHost;
+    private int gatewayPort;
+
+    // Configuration
+    private int maxQueueSize;
+    private long maxRequestSize;
+    private boolean enableCors;
+
+    // Endpoint registry - maps pattern to handler and queue
+    private final Map<String, EndpointRegistration> endpointRegistry = new ConcurrentHashMap<>();
+
+    // Metrics tracking per endpoint
+    private final Map<String, EndpointMetrics> metricsRegistry = new ConcurrentHashMap<>();
+
+    @Override
+    protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
+        return PROPERTY_DESCRIPTORS;
+    }
+
+    @OnEnabled
+    public void onEnabled(ConfigurationContext context) throws Exception {
+        this.gatewayHost = context.getProperty(GATEWAY_HOST).evaluateAttributeExpressions().getValue();
+        this.gatewayPort = context.getProperty(GATEWAY_PORT).evaluateAttributeExpressions().asInteger();
+        this.maxQueueSize = context.getProperty(MAX_QUEUE_SIZE).asInteger();
+        this.maxRequestSize = context.getProperty(MAX_REQUEST_SIZE).asLong();
+        this.enableCors = context.getProperty(ENABLE_CORS).asBoolean();
+
+        startServer();
+        getLogger().info("NodeJS App API Gateway started on {}:{}", gatewayHost, gatewayPort);
+    }
+
+    @OnDisabled
+    public void onDisabled() throws Exception {
+        stopServer();
+        endpointRegistry.clear();
+        metricsRegistry.clear();
+        getLogger().info("NodeJS App API Gateway stopped");
+    }
+
+    @Override
+    public int getGatewayPort() {
+        return gatewayPort;
+    }
+
+    @Override
+    public String getGatewayUrl() {
+        // Return localhost if bound to 0.0.0.0, otherwise use the configured host
+        String host = "0.0.0.0".equals(gatewayHost) ? "localhost" : gatewayHost;
+        return "http://" + host + ":" + gatewayPort;
+    }
+
+    @Override
+    public void registerEndpoint(String pattern, EndpointHandler handler) throws EndpointAlreadyRegisteredException {
+        if (endpointRegistry.containsKey(pattern)) {
+            throw new EndpointAlreadyRegisteredException("Endpoint pattern already registered: " + pattern);
+        }
+
+        LinkedBlockingQueue<GatewayRequest> queue = new LinkedBlockingQueue<>(maxQueueSize);
+        EndpointRegistration registration = new EndpointRegistration(handler, queue);
+        endpointRegistry.put(pattern, registration);
+        metricsRegistry.put(pattern, new EndpointMetrics());
+
+        getLogger().info("Registered endpoint: {}", pattern);
+    }
+
+    @Override
+    public void unregisterEndpoint(String pattern) {
+        EndpointRegistration registration = endpointRegistry.remove(pattern);
+        if (registration != null) {
+            registration.queue.clear();
+            metricsRegistry.remove(pattern);
+            getLogger().info("Unregistered endpoint: {}", pattern);
+        }
+    }
+
+    @Override
+    public List<String> getRegisteredEndpoints() {
+        return new ArrayList<>(endpointRegistry.keySet());
+    }
+
+    @Override
+    public EndpointMetrics getEndpointMetrics(String pattern) {
+        return metricsRegistry.get(pattern);
+    }
+
+    /**
+     * Gets the endpoint handler for a pattern (for internal use by servlets).
+     */
+    public EndpointHandler getEndpointHandler(String pattern) {
+        EndpointRegistration registration = endpointRegistry.get(pattern);
+        return registration != null ? registration.handler : null;
+    }
+
+    /**
+     * Gets the request queue for a pattern (for internal use by servlets).
+     */
+    public LinkedBlockingQueue<GatewayRequest> getEndpointQueue(String pattern) {
+        EndpointRegistration registration = endpointRegistry.get(pattern);
+        return registration != null ? registration.queue : null;
+    }
+
+    /**
+     * Gets configuration values for servlets.
+     */
+    public long getMaxRequestSize() {
+        return maxRequestSize;
+    }
+
+    public boolean isEnableCors() {
+        return enableCors;
+    }
+
+    public Map<String, EndpointMetrics> getMetricsRegistry() {
+        return Collections.unmodifiableMap(metricsRegistry);
+    }
+
+    public Map<String, EndpointRegistration> getEndpointRegistry() {
+        return Collections.unmodifiableMap(endpointRegistry);
+    }
+
+    private void startServer() throws Exception {
+        // Create server with specific host and port binding
+        java.net.InetSocketAddress address = new java.net.InetSocketAddress(gatewayHost, gatewayPort);
+        server = new Server(address);
+
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        context.setContextPath("/");
+
+        // Register servlets
+        context.addServlet(new ServletHolder(new GatewayServlet(this)), "/*");
+        context.addServlet(new ServletHolder(new InternalApiServlet(this)), "/_internal/*");
+        context.addServlet(new ServletHolder(new MetricsServlet(this)), "/_metrics");
+
+        server.setHandler(context);
+        server.start();
+    }
+
+    private void stopServer() throws Exception {
+        if (server != null && server.isRunning()) {
+            server.stop();
+            server.join();
+        }
+    }
+
+    /**
+     * Internal class to hold endpoint registration data.
+     */
+    public static class EndpointRegistration {
+        public final EndpointHandler handler;
+        public final LinkedBlockingQueue<GatewayRequest> queue;
+
+        public EndpointRegistration(EndpointHandler handler, LinkedBlockingQueue<GatewayRequest> queue) {
+            this.handler = handler;
+            this.queue = queue;
+        }
+    }
+}
