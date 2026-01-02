@@ -1,0 +1,5 @@
+org/nocodenation/nifi/nodejsapp/StandardNodeJSApplicationManagerService$DirectoryExistsValidator.class
+org/nocodenation/nifi/nodejsapp/ProcessLifecycleManager.class
+org/nocodenation/nifi/nodejsapp/StandardNodeJSApplicationManagerService.class
+org/nocodenation/nifi/nodejsapp/ProcessMonitor.class
+org/nocodenation/nifi/nodejsapp/LogCapture.class
