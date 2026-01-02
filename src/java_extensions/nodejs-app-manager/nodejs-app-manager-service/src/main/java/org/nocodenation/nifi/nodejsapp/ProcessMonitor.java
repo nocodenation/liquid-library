@@ -28,6 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -68,6 +69,11 @@ public class ProcessMonitor {
     private final AtomicReference<Instant> lastHealthCheck = new AtomicReference<>();
     private final AtomicReference<String> lastHealthCheckMessage = new AtomicReference<>("Not yet checked");
     private final AtomicBoolean lastHealthCheckPassing = new AtomicBoolean(false);
+
+    // Metrics tracking
+    private final AtomicInteger totalHealthChecks = new AtomicInteger(0);
+    private final AtomicInteger failedHealthChecks = new AtomicInteger(0);
+    private final AtomicInteger successfulHealthChecks = new AtomicInteger(0);
 
     public ProcessMonitor(ProcessLifecycleManager lifecycleManager,
                           String host,
@@ -183,6 +189,14 @@ public class ProcessMonitor {
             // Perform HTTP health check
             boolean healthy = performHttpHealthCheck();
 
+            // Update metrics
+            totalHealthChecks.incrementAndGet();
+            if (healthy) {
+                successfulHealthChecks.incrementAndGet();
+            } else {
+                failedHealthChecks.incrementAndGet();
+            }
+
             lastHealthCheck.set(Instant.now());
             lastHealthCheckPassing.set(healthy);
 
@@ -295,5 +309,38 @@ public class ProcessMonitor {
      */
     public boolean isLastHealthCheckPassing() {
         return lastHealthCheckPassing.get();
+    }
+
+    /**
+     * Gets the total number of health checks performed.
+     */
+    public int getTotalHealthChecks() {
+        return totalHealthChecks.get();
+    }
+
+    /**
+     * Gets the number of successful health checks.
+     */
+    public int getSuccessfulHealthChecks() {
+        return successfulHealthChecks.get();
+    }
+
+    /**
+     * Gets the number of failed health checks.
+     */
+    public int getFailedHealthChecks() {
+        return failedHealthChecks.get();
+    }
+
+    /**
+     * Calculates the health check success rate as a percentage.
+     * Returns 100.0 if no checks have been performed yet.
+     */
+    public double getHealthCheckSuccessRate() {
+        int total = totalHealthChecks.get();
+        if (total == 0) {
+            return 100.0;
+        }
+        return (double) successfulHealthChecks.get() / total * 100.0;
     }
 }
