@@ -306,7 +306,7 @@ public class ProcessLifecycleManager {
         File appDir = new File(appPath);
 
         if (new File(appDir, "bun.lock").exists() || new File(appDir, "bun.lockb").exists()) {
-            logger.info("Detected Bun package manager (bun.lock found)");
+            logger.info("Detected Bun package manager (bun.lock or bun.lockb found)");
             return "bun";
         }
 

@@ -221,6 +221,7 @@ public class ProcessMonitor {
 
             if (responseCode == 200) {
                 lastHealthCheckMessage.set("Healthy (HTTP 200)");
+                // Log success at DEBUG level to reduce log verbosity (happens every health check interval)
                 logger.debug("Health check passed: HTTP {}", responseCode);
                 return true;
             } else {
