@@ -28,7 +28,7 @@ import java.time.Instant;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.Queue;
 
 /**
  * Servlet handling public API requests from Node.js applications.
@@ -49,23 +49,22 @@ public class GatewayServlet extends HttpServlet {
 
     private final StandardNodeJSAppAPIGateway gateway;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final CorsHandler corsHandler;
 
     public GatewayServlet(StandardNodeJSAppAPIGateway gateway) {
         this.gateway = gateway;
+        this.corsHandler = new CorsHandler(gateway.isEnableCors());
     }
 
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         // Handle CORS preflight
-        if ("OPTIONS".equals(req.getMethod()) && gateway.isEnableCors()) {
-            handleCorsPreflightRequest(resp);
+        if (corsHandler.handlePreflightIfNeeded(req, resp)) {
             return;
         }
 
         // Add CORS headers if enabled
-        if (gateway.isEnableCors()) {
-            addCorsHeaders(resp);
-        }
+        corsHandler.addCorsHeadersIfEnabled(resp);
 
         // Skip internal endpoints
         String path = req.getPathInfo() != null ? req.getPathInfo() : req.getServletPath();
@@ -83,26 +82,21 @@ public class GatewayServlet extends HttpServlet {
         }
 
         String pattern = matchResult.getPattern();
-        EndpointMetrics metrics = gateway.getEndpointMetrics(pattern);
 
-        if (metrics == null) {
-            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Metrics not found for endpoint");
-            return;
-        }
-
-        metrics.recordRequest();
+        // Record request via gateway method delegation (maintains encapsulation)
+        gateway.recordRequest(pattern);
 
         try {
-            handleRequest(req, resp, pattern, matchResult.getPathParameters(), metrics);
+            handleRequest(req, resp, pattern, matchResult.getPathParameters());
         } catch (Exception e) {
-            metrics.recordFailure();
+            gateway.recordFailure(pattern);
             log("Error processing request for pattern " + pattern + ": " + e.getMessage(), e);
             resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal server error");
         }
     }
 
     private void handleRequest(HttpServletRequest req, HttpServletResponse resp, String pattern,
-                                Map<String, String> pathParams, EndpointMetrics metrics) throws IOException {
+                                Map<String, String> pathParams) throws IOException {
 
         long startTime = System.currentTimeMillis();
 
@@ -111,7 +105,7 @@ public class GatewayServlet extends HttpServlet {
 
         if (body.length > gateway.getMaxRequestSize()) {
             resp.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, "Request body too large");
-            metrics.recordFailure();
+            gateway.recordFailure(pattern);
             return;
         }
 
@@ -120,7 +114,7 @@ public class GatewayServlet extends HttpServlet {
 
         // Get handler (for Java processors) or queue (for Python processors)
         EndpointHandler handler = gateway.getEndpointHandler(pattern);
-        LinkedBlockingQueue<GatewayRequest> queue = gateway.getEndpointQueue(pattern);
+        Queue<GatewayRequest> queue = gateway.getEndpointQueue(pattern);
 
         GatewayResponse response;
 
@@ -129,27 +123,27 @@ public class GatewayServlet extends HttpServlet {
             try {
                 response = handler.handleRequest(request);
                 long latency = System.currentTimeMillis() - startTime;
-                metrics.recordSuccess(latency);
+                gateway.recordSuccess(pattern, latency);
             } catch (RequestProcessingException e) {
                 // Log warning using servlet context
                 log("Request processing failed for " + pattern + ": " + e.getMessage());
                 response = GatewayResponse.internalError(e.getMessage());
-                metrics.recordFailure();
+                gateway.recordFailure(pattern);
             }
         } else if (queue != null) {
             // Python processor - queue for polling
             if (!queue.offer(request)) {
                 response = GatewayResponse.queueFull();
-                metrics.recordQueueFull();
+                gateway.recordQueueFull(pattern);
             } else {
                 response = GatewayResponse.accepted();
-                metrics.updateQueueSize(queue.size());
+                gateway.updateQueueSize(pattern, queue.size());
                 long latency = System.currentTimeMillis() - startTime;
-                metrics.recordSuccess(latency);
+                gateway.recordSuccess(pattern, latency);
             }
         } else {
             response = GatewayResponse.internalError("No handler or queue for endpoint");
-            metrics.recordFailure();
+            gateway.recordFailure(pattern);
         }
 
         // Send response
@@ -226,17 +220,5 @@ public class GatewayServlet extends HttpServlet {
             }
         }
         return null;
-    }
-
-    private void handleCorsPreflightRequest(HttpServletResponse resp) {
-        addCorsHeaders(resp);
-        resp.setStatus(HttpServletResponse.SC_OK);
-    }
-
-    private void addCorsHeaders(HttpServletResponse resp) {
-        resp.setHeader("Access-Control-Allow-Origin", "*");
-        resp.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-        resp.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Event-Id, X-Timestamp, X-Stage");
-        resp.setHeader("Access-Control-Max-Age", "3600");
     }
 }

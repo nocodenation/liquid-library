@@ -25,7 +25,8 @@ import java.io.IOException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -78,7 +79,7 @@ public class InternalApiServlet extends HttpServlet {
     }
 
     private void handlePoll(String pattern, HttpServletResponse resp) throws IOException {
-        LinkedBlockingQueue<GatewayRequest> queue = gateway.getEndpointQueue(pattern);
+        Queue<GatewayRequest> queue = gateway.getEndpointQueue(pattern);
 
         if (queue == null) {
             resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
@@ -87,9 +88,17 @@ public class InternalApiServlet extends HttpServlet {
             return;
         }
 
+        // Cast to BlockingQueue for poll with timeout support
+        if (!(queue instanceof BlockingQueue)) {
+            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Queue does not support blocking operations");
+            return;
+        }
+
+        BlockingQueue<GatewayRequest> blockingQueue = (BlockingQueue<GatewayRequest>) queue;
+
         try {
             // Poll with timeout (long-polling)
-            GatewayRequest request = queue.poll(30, TimeUnit.SECONDS);
+            GatewayRequest request = blockingQueue.poll(30, TimeUnit.SECONDS);
 
             if (request == null) {
                 // Timeout - return 204 No Content
@@ -97,11 +106,8 @@ public class InternalApiServlet extends HttpServlet {
                 return;
             }
 
-            // Update queue size metric
-            EndpointMetrics metrics = gateway.getEndpointMetrics(pattern);
-            if (metrics != null) {
-                metrics.updateQueueSize(queue.size());
-            }
+            // Update queue size metric via method delegation
+            gateway.updateQueueSize(pattern, blockingQueue.size());
 
             // Serialize request to JSON
             Map<String, Object> requestJson = new HashMap<>();

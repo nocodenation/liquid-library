@@ -18,6 +18,7 @@ package org.nocodenation.nifi.nodejsapp.gateway;
 
 import org.apache.nifi.controller.ControllerService;
 import java.util.List;
+import java.util.Queue;
 
 /**
  * Controller Service providing HTTP gateway for Node.js application communication.
@@ -169,8 +170,11 @@ public interface NodeJSAppAPIGateway extends ControllerService {
      * <p>Java processors can poll this queue to retrieve incoming requests.
      * This method is used by Java-based processors that register with a null handler.</p>
      *
+     * <p>Returns Queue interface to avoid exposing concrete implementation details.
+     * The underlying implementation is a bounded blocking queue with configurable capacity.</p>
+     *
      * @param pattern endpoint pattern
      * @return request queue, or null if endpoint doesn't exist or uses a handler
      */
-    java.util.concurrent.LinkedBlockingQueue<GatewayRequest> getEndpointQueue(String pattern);
+    Queue<GatewayRequest> getEndpointQueue(String pattern);
 }

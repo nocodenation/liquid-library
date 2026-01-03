@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -256,6 +257,57 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
     }
 
     /**
+     * Records a request for the given endpoint pattern (for internal use by servlets).
+     * This method encapsulates metrics updates to maintain proper ownership.
+     */
+    public void recordRequest(String pattern) {
+        EndpointMetrics metrics = metricsRegistry.get(pattern);
+        if (metrics != null) {
+            metrics.recordRequest();
+        }
+    }
+
+    /**
+     * Records a successful request with latency (for internal use by servlets).
+     */
+    public void recordSuccess(String pattern, long latencyMs) {
+        EndpointMetrics metrics = metricsRegistry.get(pattern);
+        if (metrics != null) {
+            metrics.recordSuccess(latencyMs);
+        }
+    }
+
+    /**
+     * Records a failed request (for internal use by servlets).
+     */
+    public void recordFailure(String pattern) {
+        EndpointMetrics metrics = metricsRegistry.get(pattern);
+        if (metrics != null) {
+            metrics.recordFailure();
+        }
+    }
+
+    /**
+     * Records a queue full rejection (for internal use by servlets).
+     */
+    public void recordQueueFull(String pattern) {
+        EndpointMetrics metrics = metricsRegistry.get(pattern);
+        if (metrics != null) {
+            metrics.recordQueueFull();
+        }
+    }
+
+    /**
+     * Updates the current queue size for an endpoint (for internal use by servlets).
+     */
+    public void updateQueueSize(String pattern, int size) {
+        EndpointMetrics metrics = metricsRegistry.get(pattern);
+        if (metrics != null) {
+            metrics.updateQueueSize(size);
+        }
+    }
+
+    /**
      * Gets the endpoint handler for a pattern (for internal use by servlets).
      */
     public EndpointHandler getEndpointHandler(String pattern) {
@@ -265,8 +317,9 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
 
     /**
      * Gets the request queue for a pattern (for internal use by servlets).
+     * Returns Queue interface to avoid exposing concrete implementation.
      */
-    public LinkedBlockingQueue<GatewayRequest> getEndpointQueue(String pattern) {
+    public Queue<GatewayRequest> getEndpointQueue(String pattern) {
         EndpointRegistration registration = endpointRegistry.get(pattern);
         return registration != null ? registration.queue : null;
     }

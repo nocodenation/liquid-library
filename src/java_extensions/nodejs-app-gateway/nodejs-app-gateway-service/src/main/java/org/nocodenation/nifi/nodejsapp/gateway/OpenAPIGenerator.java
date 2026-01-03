@@ -19,7 +19,6 @@ import java.util.regex.Pattern;
 public class OpenAPIGenerator {
 
     private static final String OPENAPI_VERSION = "3.0.0";
-    private static final Pattern PATH_PARAM_PATTERN = Pattern.compile(":([a-zA-Z][a-zA-Z0-9_]*)");
 
     private final ObjectMapper objectMapper;
     private final String gatewayUrl;
@@ -104,7 +103,7 @@ public class OpenAPIGenerator {
                 operation.put("description", "Submit data to " + nifiPattern);
 
                 // Parameters (path parameters from pattern)
-                List<String> pathParams = extractPathParameters(nifiPattern);
+                List<String> pathParams = PathPatternParser.extractParameterNames(nifiPattern);
                 if (!pathParams.isEmpty()) {
                     ArrayNode parameters = operation.putArray("parameters");
                     for (String paramName : pathParams) {
@@ -170,30 +169,6 @@ public class OpenAPIGenerator {
      * Example: /api/event/:id -> /api/event/{id}
      */
     private String convertPathPattern(String nifiPattern) {
-        Matcher matcher = PATH_PARAM_PATTERN.matcher(nifiPattern);
-        StringBuffer result = new StringBuffer();
-
-        while (matcher.find()) {
-            String paramName = matcher.group(1);
-            matcher.appendReplacement(result, "{" + paramName + "}");
-        }
-        matcher.appendTail(result);
-
-        return result.toString();
-    }
-
-    /**
-     * Extract path parameter names from NiFi pattern.
-     * Example: /api/event/:id -> ["id"]
-     */
-    private List<String> extractPathParameters(String nifiPattern) {
-        List<String> params = new ArrayList<>();
-        Matcher matcher = PATH_PARAM_PATTERN.matcher(nifiPattern);
-
-        while (matcher.find()) {
-            params.add(matcher.group(1));
-        }
-
-        return params;
+        return PathPatternParser.convertToOpenAPI(nifiPattern);
     }
 }

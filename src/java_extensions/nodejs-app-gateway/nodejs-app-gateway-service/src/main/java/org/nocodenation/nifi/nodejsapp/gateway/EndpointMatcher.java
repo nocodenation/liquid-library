@@ -43,27 +43,12 @@ public class EndpointMatcher {
     public EndpointMatcher(String pattern) {
         this.pattern = pattern;
 
-        // Extract parameter names
-        java.util.List<String> params = new java.util.ArrayList<>();
-        String regexPattern = pattern;
-
-        // Find all :paramName in the pattern
-        Pattern paramPattern = Pattern.compile(":([a-zA-Z_][a-zA-Z0-9_]*)");
-        Matcher paramMatcher = paramPattern.matcher(pattern);
-
-        while (paramMatcher.find()) {
-            params.add(paramMatcher.group(1));
-        }
-
+        // Use PathPatternParser to extract parameter names
+        java.util.List<String> params = PathPatternParser.extractParameterNames(pattern);
         this.paramNames = params.toArray(new String[0]);
 
-        // Convert pattern to regex
-        // Replace :paramName with ([^/]+) to match path segments
-        regexPattern = regexPattern.replaceAll(":([a-zA-Z_][a-zA-Z0-9_]*)", "([^/]+)");
-
-        // Escape special regex characters except what we've already replaced
-        regexPattern = "^" + regexPattern + "$";
-
+        // Use PathPatternParser to convert pattern to regex
+        String regexPattern = PathPatternParser.convertToRegex(pattern);
         this.regex = Pattern.compile(regexPattern);
     }
 

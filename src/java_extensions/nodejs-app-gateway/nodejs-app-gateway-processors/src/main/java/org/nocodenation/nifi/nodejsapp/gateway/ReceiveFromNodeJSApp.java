@@ -192,16 +192,25 @@ public class ReceiveFromNodeJSApp extends AbstractProcessor {
         String matchedPattern = null;
 
         for (String pattern : endpointPatterns) {
-            java.util.concurrent.LinkedBlockingQueue<GatewayRequest> queue = gateway.getEndpointQueue(pattern);
+            java.util.Queue<GatewayRequest> queue = gateway.getEndpointQueue(pattern);
 
             if (queue == null) {
                 getLogger().error("No queue found for endpoint pattern '{}'", pattern);
                 continue;
             }
 
+            // Cast to BlockingQueue for poll with timeout support
+            if (!(queue instanceof java.util.concurrent.BlockingQueue)) {
+                getLogger().error("Queue for pattern '{}' does not support blocking operations", pattern);
+                continue;
+            }
+
+            java.util.concurrent.BlockingQueue<GatewayRequest> blockingQueue =
+                (java.util.concurrent.BlockingQueue<GatewayRequest>) queue;
+
             // Poll with short timeout
             try {
-                request = queue.poll(100, java.util.concurrent.TimeUnit.MILLISECONDS);
+                request = blockingQueue.poll(100, java.util.concurrent.TimeUnit.MILLISECONDS);
                 if (request != null) {
                     matchedPattern = pattern;
                     break; // Found a request, process it
