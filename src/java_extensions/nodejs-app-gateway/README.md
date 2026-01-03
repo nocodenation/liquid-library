@@ -12,6 +12,7 @@ The NodeJS Application API Gateway provides a lightweight HTTP server that Node.
 - **Path Parameters**: Support for patterns like `/users/:userId/posts/:postId`
 - **Dual Integration**: Both Java (zero-latency) and Python (polling) processors
 - **Automatic Queuing**: Built-in request queuing with configurable size limits
+- **Swagger UI**: Auto-generated API documentation at `/swagger` (configurable)
 - **Metrics Endpoint**: Real-time statistics at `/_metrics`
 - **CORS Support**: Configurable cross-origin resource sharing for browser apps
 - **Backpressure Handling**: Automatic 503 responses when queues are full
@@ -93,6 +94,9 @@ Add a NodeJSAppAPIGateway controller service:
 | Maximum Queue Size | 100 | Max requests per endpoint |
 | Maximum Request Size | 10485760 | Max body size (10 MB) |
 | Enable CORS | true | Allow cross-origin requests |
+| Enable Swagger UI | true | Auto-generated API documentation |
+| Swagger UI Path | /swagger | URL path for Swagger UI |
+| OpenAPI Spec Path | /openapi.json | URL path for OpenAPI JSON spec |
 
 ### 2. Add a Processor
 
@@ -168,6 +172,28 @@ All processors create FlowFiles with these attributes:
 | `http.timestamp` | 2024-01-15T10:30:45Z | Request timestamp (ISO-8601) |
 
 FlowFile content contains the request body (if any).
+
+## API Documentation
+
+### Swagger UI
+
+Access interactive API documentation at: `http://localhost:5050/swagger`
+
+The Swagger UI interface provides:
+- **Auto-generated documentation** from registered endpoints
+- **Interactive testing** - Try endpoints directly from browser
+- **Path parameter documentation** - Automatically extracted from patterns
+- **OpenAPI 3.0 spec** - Available at `/openapi.json`
+
+The documentation updates automatically as processors register/unregister endpoints.
+
+To disable Swagger UI in production environments:
+
+```xml
+<property name="Enable Swagger UI">false</property>
+```
+
+For detailed implementation information, see [IMPLEMENTATION_NOTES_SwaggerUI.md](IMPLEMENTATION_NOTES_SwaggerUI.md).
 
 ## Monitoring
 
@@ -309,7 +335,7 @@ Change the gateway port:
 
 ### Public API
 
-All endpoints except `/_internal/*` and `/_metrics`:
+All endpoints except `/_internal/*`, `/_metrics`, `/swagger`, and `/openapi.json`:
 
 ```
 POST /api/events
@@ -322,6 +348,13 @@ PUT  /users/:userId/profile
 ```
 GET /_internal/poll/:pattern    # Long-poll for requests
 POST /_internal/respond/:id     # Submit response (future)
+```
+
+### Documentation API
+
+```
+GET /swagger                    # Swagger UI interface
+GET /openapi.json               # OpenAPI 3.0 specification
 ```
 
 ### Metrics API
@@ -351,6 +384,9 @@ nodejs-app-gateway/
 │       ├── GatewayServlet.java              # Public API handler
 │       ├── InternalApiServlet.java          # Python polling API
 │       ├── MetricsServlet.java              # Metrics endpoint
+│       ├── OpenAPIGenerator.java            # OpenAPI spec generation
+│       ├── OpenAPIServlet.java              # OpenAPI JSON endpoint
+│       ├── SwaggerServlet.java              # Swagger UI interface
 │       └── EndpointMatcher.java             # Pattern matching utility
 │
 ├── nodejs-app-gateway-processors/           # Java processor
@@ -385,4 +421,6 @@ Licensed under the Apache License, Version 2.0.
 
 - [SPECIFICATION_NodeJSAppAPIGateway.md](SPECIFICATION_NodeJSAppAPIGateway.md) - Detailed specification
 - [IMPLEMENTATION_PLAN_NodeJSAppAPIGateway.md](IMPLEMENTATION_PLAN_NodeJSAppAPIGateway.md) - Implementation plan
+- [SPECIFICATION_SwaggerUI_Integration.md](SPECIFICATION_SwaggerUI_Integration.md) - Swagger UI specification
+- [IMPLEMENTATION_NOTES_SwaggerUI.md](IMPLEMENTATION_NOTES_SwaggerUI.md) - Swagger UI implementation notes
 - [BACKLOG_NodeJSAppAPIGateway.md](BACKLOG_NodeJSAppAPIGateway.md) - Future enhancements

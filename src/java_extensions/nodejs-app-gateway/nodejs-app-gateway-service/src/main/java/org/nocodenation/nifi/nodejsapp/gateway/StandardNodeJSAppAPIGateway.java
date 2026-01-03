@@ -95,6 +95,32 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
             .defaultValue("true")
             .build();
 
+    public static final PropertyDescriptor SWAGGER_ENABLED = new PropertyDescriptor.Builder()
+            .name("Enable Swagger UI")
+            .description("Enable auto-generated API documentation via Swagger UI")
+            .required(true)
+            .allowableValues("true", "false")
+            .defaultValue("true")
+            .build();
+
+    public static final PropertyDescriptor SWAGGER_PATH = new PropertyDescriptor.Builder()
+            .name("Swagger UI Path")
+            .description("URL path for accessing Swagger UI (e.g., /swagger)")
+            .required(true)
+            .defaultValue("/swagger")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .dependsOn(SWAGGER_ENABLED, "true")
+            .build();
+
+    public static final PropertyDescriptor OPENAPI_PATH = new PropertyDescriptor.Builder()
+            .name("OpenAPI Spec Path")
+            .description("URL path for accessing OpenAPI JSON specification (e.g., /openapi.json)")
+            .required(true)
+            .defaultValue("/openapi.json")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .dependsOn(SWAGGER_ENABLED, "true")
+            .build();
+
     private static final List<PropertyDescriptor> PROPERTY_DESCRIPTORS;
 
     static {
@@ -104,6 +130,9 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         props.add(MAX_QUEUE_SIZE);
         props.add(MAX_REQUEST_SIZE);
         props.add(ENABLE_CORS);
+        props.add(SWAGGER_ENABLED);
+        props.add(SWAGGER_PATH);
+        props.add(OPENAPI_PATH);
         PROPERTY_DESCRIPTORS = Collections.unmodifiableList(props);
     }
 
@@ -128,6 +157,11 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         return PROPERTY_DESCRIPTORS;
     }
 
+    // Swagger configuration
+    private boolean swaggerEnabled;
+    private String swaggerPath;
+    private String openapiPath;
+
     @OnEnabled
     public void onEnabled(ConfigurationContext context) throws Exception {
         this.gatewayHost = context.getProperty(GATEWAY_HOST).evaluateAttributeExpressions().getValue();
@@ -135,9 +169,16 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         this.maxQueueSize = context.getProperty(MAX_QUEUE_SIZE).asInteger();
         this.maxRequestSize = context.getProperty(MAX_REQUEST_SIZE).asLong();
         this.enableCors = context.getProperty(ENABLE_CORS).asBoolean();
+        this.swaggerEnabled = context.getProperty(SWAGGER_ENABLED).asBoolean();
+        this.swaggerPath = context.getProperty(SWAGGER_PATH).getValue();
+        this.openapiPath = context.getProperty(OPENAPI_PATH).getValue();
 
         startServer();
         getLogger().info("NodeJS App API Gateway started on {}:{}", gatewayHost, gatewayPort);
+        if (swaggerEnabled) {
+            getLogger().info("Swagger UI enabled at {}{}", getGatewayUrl(), swaggerPath);
+            getLogger().info("OpenAPI spec available at {}{}", getGatewayUrl(), openapiPath);
+        }
     }
 
     @OnDisabled
@@ -237,10 +278,20 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
 
-        // Register servlets
-        context.addServlet(new ServletHolder(new GatewayServlet(this)), "/*");
+        // Register core servlets
         context.addServlet(new ServletHolder(new InternalApiServlet(this)), "/_internal/*");
         context.addServlet(new ServletHolder(new MetricsServlet(this)), "/_metrics");
+
+        // Register Swagger UI servlets if enabled
+        if (swaggerEnabled) {
+            OpenAPIGenerator generator = new OpenAPIGenerator(getGatewayUrl());
+            context.addServlet(new ServletHolder(new OpenAPIServlet(generator, this)), openapiPath);
+            context.addServlet(new ServletHolder(new SwaggerServlet(openapiPath)), swaggerPath + "/*");
+            getLogger().debug("Registered Swagger UI servlets: {} and {}", swaggerPath, openapiPath);
+        }
+
+        // Register Gateway servlet last to avoid catching Swagger paths
+        context.addServlet(new ServletHolder(new GatewayServlet(this)), "/*");
 
         server.setHandler(context);
         server.start();
