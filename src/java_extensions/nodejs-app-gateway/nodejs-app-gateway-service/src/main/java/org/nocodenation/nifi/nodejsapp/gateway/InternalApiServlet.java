@@ -46,10 +46,6 @@ public class InternalApiServlet extends HttpServlet {
     private final StandardNodeJSAppAPIGateway gateway;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // Map to hold responses from Python processors
-    // Key: requestId, Value: response
-    private final Map<String, GatewayResponse> responseMap = new HashMap<>();
-
     public InternalApiServlet(StandardNodeJSAppAPIGateway gateway) {
         this.gateway = gateway;
     }
@@ -74,17 +70,11 @@ public class InternalApiServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        String pathInfo = req.getPathInfo();
-
-        if (pathInfo == null || !pathInfo.startsWith("/respond/")) {
-            resp.sendError(HttpServletResponse.SC_NOT_FOUND);
-            return;
-        }
-
-        // Extract request ID from path: /_internal/respond/:requestId
-        String requestId = pathInfo.substring(9); // Remove "/respond/"
-
-        handleRespond(req, requestId, resp);
+        // Response handling not yet implemented - Python processors return 202 Accepted
+        // Future enhancement: implement async response correlation via WebSocket or SSE
+        resp.setStatus(HttpServletResponse.SC_NOT_IMPLEMENTED);
+        resp.setContentType("application/json");
+        resp.getWriter().write("{\"error\":\"Response handling not implemented\",\"message\":\"Python processors currently return 202 Accepted. Async response handling is a future enhancement.\"}");
     }
 
     private void handlePoll(String pattern, HttpServletResponse resp) throws IOException {
@@ -143,38 +133,4 @@ public class InternalApiServlet extends HttpServlet {
         }
     }
 
-    private void handleRespond(HttpServletRequest req, String requestId, HttpServletResponse resp) throws IOException {
-        // Read response from Python processor
-        @SuppressWarnings("unchecked")
-        Map<String, Object> responseJson = objectMapper.readValue(req.getReader(), Map.class);
-
-        int statusCode = (int) responseJson.getOrDefault("statusCode", 200);
-
-        @SuppressWarnings("unchecked")
-        Map<String, String> headers = (Map<String, String>) responseJson.getOrDefault("headers", new HashMap<>());
-
-        String contentType = (String) responseJson.get("contentType");
-        if (contentType != null && !headers.containsKey("Content-Type")) {
-            headers.put("Content-Type", contentType);
-        }
-
-        String body = "";
-        if (responseJson.containsKey("body") && responseJson.get("body") != null) {
-            String bodyStr = (String) responseJson.get("body");
-            if (!bodyStr.isEmpty()) {
-                // Decode base64 body and convert to String
-                byte[] bodyBytes = Base64.getDecoder().decode(bodyStr);
-                body = new String(bodyBytes, "UTF-8");
-            }
-        }
-
-        GatewayResponse gatewayResponse = new GatewayResponse(statusCode, body, headers);
-
-        // Store response (in real implementation, this would be tied to actual request handling)
-        responseMap.put(requestId, gatewayResponse);
-
-        resp.setStatus(HttpServletResponse.SC_OK);
-        resp.setContentType("application/json");
-        resp.getWriter().write("{\"status\":\"accepted\"}");
-    }
 }

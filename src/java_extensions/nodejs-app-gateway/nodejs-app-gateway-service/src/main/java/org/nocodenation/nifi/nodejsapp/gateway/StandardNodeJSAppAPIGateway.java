@@ -152,6 +152,9 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
     // Metrics tracking per endpoint
     private final Map<String, EndpointMetrics> metricsRegistry = new ConcurrentHashMap<>();
 
+    // Matcher cache - avoids recreating EndpointMatcher on every request
+    private final Map<String, EndpointMatcher> matcherCache = new ConcurrentHashMap<>();
+
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
         return PROPERTY_DESCRIPTORS;
@@ -161,6 +164,7 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
     private boolean swaggerEnabled;
     private String swaggerPath;
     private String openapiPath;
+    private OpenAPIGenerator openapiGenerator;
 
     @OnEnabled
     public void onEnabled(ConfigurationContext context) throws Exception {
@@ -186,6 +190,7 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         stopServer();
         endpointRegistry.clear();
         metricsRegistry.clear();
+        matcherCache.clear();
         getLogger().info("NodeJS App API Gateway stopped");
     }
 
@@ -212,6 +217,14 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         endpointRegistry.put(pattern, registration);
         metricsRegistry.put(pattern, new EndpointMetrics());
 
+        // Create and cache matcher for this pattern
+        matcherCache.put(pattern, new EndpointMatcher(pattern));
+
+        // Invalidate OpenAPI cache so new endpoint appears immediately in Swagger UI
+        if (swaggerEnabled && openapiGenerator != null) {
+            openapiGenerator.invalidateCache();
+        }
+
         getLogger().info("Registered endpoint: {}", pattern);
     }
 
@@ -221,6 +234,13 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         if (registration != null) {
             registration.queue.clear();
             metricsRegistry.remove(pattern);
+            matcherCache.remove(pattern);
+
+            // Invalidate OpenAPI cache so removed endpoint disappears immediately from Swagger UI
+            if (swaggerEnabled && openapiGenerator != null) {
+                openapiGenerator.invalidateCache();
+            }
+
             getLogger().info("Unregistered endpoint: {}", pattern);
         }
     }
@@ -249,6 +269,14 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
     public LinkedBlockingQueue<GatewayRequest> getEndpointQueue(String pattern) {
         EndpointRegistration registration = endpointRegistry.get(pattern);
         return registration != null ? registration.queue : null;
+    }
+
+    /**
+     * Gets the cached EndpointMatcher for a pattern (for internal use by servlets).
+     * This avoids recreating matchers and recompiling regex on every request.
+     */
+    public EndpointMatcher getEndpointMatcher(String pattern) {
+        return matcherCache.get(pattern);
     }
 
     /**
@@ -284,8 +312,8 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
 
         // Register Swagger UI servlets if enabled
         if (swaggerEnabled) {
-            OpenAPIGenerator generator = new OpenAPIGenerator(getGatewayUrl());
-            context.addServlet(new ServletHolder(new OpenAPIServlet(generator, this)), openapiPath);
+            openapiGenerator = new OpenAPIGenerator(getGatewayUrl());
+            context.addServlet(new ServletHolder(new OpenAPIServlet(openapiGenerator, this)), openapiPath);
             context.addServlet(new ServletHolder(new SwaggerServlet(openapiPath)), swaggerPath + "/*");
             getLogger().debug("Registered Swagger UI servlets: {} and {}", swaggerPath, openapiPath);
         }

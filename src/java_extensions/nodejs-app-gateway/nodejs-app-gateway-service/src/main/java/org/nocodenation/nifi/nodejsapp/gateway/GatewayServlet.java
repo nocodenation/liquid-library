@@ -216,10 +216,13 @@ public class GatewayServlet extends HttpServlet {
 
     private EndpointMatcher.MatchResult findMatchingEndpoint(String path) {
         for (String pattern : gateway.getRegisteredEndpoints()) {
-            EndpointMatcher matcher = new EndpointMatcher(pattern);
-            EndpointMatcher.MatchResult result = matcher.match(path);
-            if (result != null) {
-                return result;
+            // Use cached matcher to avoid recreating EndpointMatcher and recompiling regex on every request
+            EndpointMatcher matcher = gateway.getEndpointMatcher(pattern);
+            if (matcher != null) {
+                EndpointMatcher.MatchResult result = matcher.match(path);
+                if (result != null) {
+                    return result;
+                }
             }
         }
         return null;
