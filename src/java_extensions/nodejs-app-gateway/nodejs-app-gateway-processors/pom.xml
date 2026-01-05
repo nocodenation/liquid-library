@@ -7,11 +7,11 @@
     <parent>
         <groupId>org.nocodenation.nifi</groupId>
         <artifactId>nodejs-app-gateway</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>nodejs-app-gateway-processors</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <dependencies>
@@ -19,7 +19,7 @@
         <dependency>
             <groupId>org.nocodenation.nifi</groupId>
             <artifactId>nodejs-app-gateway-service-api</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
 
         <!-- NiFi APIs -->

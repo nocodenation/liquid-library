@@ -1,6 +1,6 @@
 # NodeJSAppAPIGateway - Technical Specification (v2)
 
-**Version:** 1.0.0-SNAPSHOT
+**Version:** 1.0.0
 **Date:** 2026-01-02
 **Status:** Approved - Ready for Implementation
 **Pattern:** NiFi Pattern B (Controller Service)
@@ -395,7 +395,7 @@ class ReceiveFromNodeJSApp(FlowFileSource):
         implements = ['org.apache.nifi.python.processor.FlowFileSource']
 
     class ProcessorDetails:
-        version = '1.0.0-SNAPSHOT'
+        version = '1.0.0'
         description = '''Receives HTTP requests from Node.js applications via NodeJSAppAPIGateway.
 
         This processor polls the gateway's internal API to retrieve queued requests and creates

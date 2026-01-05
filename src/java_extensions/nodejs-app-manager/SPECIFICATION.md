@@ -1,6 +1,6 @@
 # NodeJSApplicationManagerService - Technical Specification
 
-**Version:** 1.0.0-SNAPSHOT
+**Version:** 1.0.0
 **Date:** 2026-01-01
 **Status:** Draft - Ready for Implementation
 **Pattern:** NiFi Pattern B (Controller Service)
@@ -1411,7 +1411,7 @@ Following Pattern B (Controller Service):
 
     <groupId>org.nocodenation.nifi</groupId>
     <artifactId>nodejs-app-manager</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -1468,7 +1468,7 @@ Following Pattern B (Controller Service):
     <parent>
         <groupId>org.nocodenation.nifi</groupId>
         <artifactId>nodejs-app-manager</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>nodejs-app-manager-service-api</artifactId>
@@ -1497,7 +1497,7 @@ Following Pattern B (Controller Service):
     <parent>
         <groupId>org.nocodenation.nifi</groupId>
         <artifactId>nodejs-app-manager</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>nodejs-app-manager-service-api-nar</artifactId>
@@ -1507,7 +1507,7 @@ Following Pattern B (Controller Service):
         <dependency>
             <groupId>org.nocodenation.nifi</groupId>
             <artifactId>nodejs-app-manager-service-api</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.nifi</groupId>
@@ -1532,7 +1532,7 @@ Following Pattern B (Controller Service):
     <parent>
         <groupId>org.nocodenation.nifi</groupId>
         <artifactId>nodejs-app-manager</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>nodejs-app-manager-service</artifactId>
@@ -1543,7 +1543,7 @@ Following Pattern B (Controller Service):
         <dependency>
             <groupId>org.nocodenation.nifi</groupId>
             <artifactId>nodejs-app-manager-service-api</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>1.0.0</version>
             <scope>provided</scope>
         </dependency>
 
@@ -1599,7 +1599,7 @@ Following Pattern B (Controller Service):
     <parent>
         <groupId>org.nocodenation.nifi</groupId>
         <artifactId>nodejs-app-manager</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>nodejs-app-manager-service-nar</artifactId>
@@ -1609,12 +1609,12 @@ Following Pattern B (Controller Service):
         <dependency>
             <groupId>org.nocodenation.nifi</groupId>
             <artifactId>nodejs-app-manager-service</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.nocodenation.nifi</groupId>
             <artifactId>nodejs-app-manager-service-api-nar</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>1.0.0</version>
             <type>nar</type>
         </dependency>
     </dependencies>
@@ -1802,8 +1802,8 @@ cd liquid-library/src/java_extensions/nodejs-app-manager
 mvn clean install
 
 # NAR files created in:
-# - nodejs-app-manager-service-api-nar/target/nodejs-app-manager-service-api-nar-1.0.0-SNAPSHOT.nar
-# - nodejs-app-manager-service-nar/target/nodejs-app-manager-service-nar-1.0.0-SNAPSHOT.nar
+# - nodejs-app-manager-service-api-nar/target/nodejs-app-manager-service-api-nar-1.0.0.nar
+# - nodejs-app-manager-service-nar/target/nodejs-app-manager-service-nar-1.0.0.nar
 ```
 
 ### Installation
@@ -2008,7 +2008,7 @@ export default function handler(req, res) {
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 1.0.0-SNAPSHOT | 2026-01-01 | Development Team | Initial specification |
+| 1.0.0 | 2026-01-01 | Development Team | Initial specification |
 
 ---
 

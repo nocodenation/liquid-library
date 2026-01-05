@@ -1,6 +1,6 @@
 # NodeJSAppAPIGateway - Implementation Plan
 
-**Version:** 1.0.0-SNAPSHOT
+**Version:** 1.0.0
 **Date:** 2026-01-02
 **Status:** Approved - Ready to Start
 **Estimated Effort:** 2-3 weeks
@@ -100,7 +100,7 @@ public interface EndpointHandler {
 ```xml
 <groupId>org.nocodenation.nifi</groupId>
 <artifactId>nodejs-app-gateway</artifactId>
-<version>1.0.0-SNAPSHOT</version>
+<version>1.0.0</version>
 <packaging>pom</packaging>
 
 <modules>

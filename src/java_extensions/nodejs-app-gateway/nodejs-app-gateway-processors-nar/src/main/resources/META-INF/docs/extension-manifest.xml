@@ -2,15 +2,15 @@
 <extensionManifest>
     <groupId>org.nocodenation.nifi</groupId>
     <artifactId>nodejs-app-gateway-processors-nar</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <parentNar>
         <groupId>org.nocodenation.nifi</groupId>
         <artifactId>nodejs-app-gateway-service-api-nar</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parentNar>
     <systemApiVersion>2.0.0</systemApiVersion>
     <buildInfo>
-        <tag>1.0.0-SNAPSHOT</tag>
+        <tag>1.0.0</tag>
         <branch>main</branch>
         <revision>1</revision>
     </buildInfo>
@@ -35,7 +35,7 @@
                         <className>org.nocodenation.nifi.nodejsapp.gateway.NodeJSAppAPIGateway</className>
                         <groupId>org.nocodenation.nifi</groupId>
                         <artifactId>nodejs-app-gateway-service-api-nar</artifactId>
-                        <version>1.0.0-SNAPSHOT</version>
+                        <version>1.0.0</version>
                     </controllerServiceDefinition>
                     <required>true</required>
                     <sensitive>false</sensitive>

@@ -6,7 +6,7 @@ A NiFi Controller Service for managing Node.js application lifecycles from withi
 
 **NodeJSApplicationManagerService** enables NiFi to start, stop, monitor, and restart Node.js processes, providing centralized management of frontend applications or Node.js-based services alongside data processing flows.
 
-**Version:** 1.0.0-SNAPSHOT
+**Version:** 1.0.0
 **Status:** Production Ready
 **Pattern:** NiFi Pattern B (Controller Service)
 
@@ -50,8 +50,8 @@ mvn clean install
 ```
 
 NAR files will be created in:
-- `nodejs-app-manager-service-api-nar/target/nodejs-app-manager-service-api-nar-1.0.0-SNAPSHOT.nar`
-- `nodejs-app-manager-service-nar/target/nodejs-app-manager-service-nar-1.0.0-SNAPSHOT.nar`
+- `nodejs-app-manager-service-api-nar/target/nodejs-app-manager-service-api-nar-1.0.0.nar`
+- `nodejs-app-manager-service-nar/target/nodejs-app-manager-service-nar-1.0.0.nar`
 
 ### Installation
 
@@ -134,7 +134,7 @@ String getApplicationUrl()
 
 ## Development Status
 
-**Current Version:** 1.0.0-SNAPSHOT
+**Current Version:** 1.0.0
 **Completion:** 15 of 22 issues resolved (68%)
 **Production Ready:** Yes
 

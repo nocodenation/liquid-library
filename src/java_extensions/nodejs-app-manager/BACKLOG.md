@@ -1,7 +1,7 @@
 # NodeJSApplicationManagerService - Development Backlog
 
 **Last Updated:** 2026-01-02
-**Version:** 1.0.0-SNAPSHOT
+**Version:** 1.0.0
 **Status:** 15 of 22 issues completed
 
 ---

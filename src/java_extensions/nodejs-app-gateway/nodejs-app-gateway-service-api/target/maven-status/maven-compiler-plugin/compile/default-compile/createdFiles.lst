@@ -1,8 +1,0 @@
-org/nocodenation/nifi/nodejsapp/gateway/EndpointHandler.class
-org/nocodenation/nifi/nodejsapp/gateway/GatewayResponse.class
-org/nocodenation/nifi/nodejsapp/gateway/GatewayRequest$Builder.class
-org/nocodenation/nifi/nodejsapp/gateway/EndpointMetrics.class
-org/nocodenation/nifi/nodejsapp/gateway/GatewayRequest.class
-org/nocodenation/nifi/nodejsapp/gateway/EndpointAlreadyRegisteredException.class
-org/nocodenation/nifi/nodejsapp/gateway/RequestProcessingException.class
-org/nocodenation/nifi/nodejsapp/gateway/NodeJSAppAPIGateway.class

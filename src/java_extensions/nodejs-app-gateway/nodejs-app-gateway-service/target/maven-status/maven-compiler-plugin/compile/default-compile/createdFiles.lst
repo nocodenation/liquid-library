@@ -1,7 +1,0 @@
-org/nocodenation/nifi/nodejsapp/gateway/MetricsServlet.class
-org/nocodenation/nifi/nodejsapp/gateway/GatewayServlet.class
-org/nocodenation/nifi/nodejsapp/gateway/StandardNodeJSAppAPIGateway.class
-org/nocodenation/nifi/nodejsapp/gateway/InternalApiServlet.class
-org/nocodenation/nifi/nodejsapp/gateway/EndpointMatcher$MatchResult.class
-org/nocodenation/nifi/nodejsapp/gateway/EndpointMatcher.class
-org/nocodenation/nifi/nodejsapp/gateway/StandardNodeJSAppAPIGateway$EndpointRegistration.class
