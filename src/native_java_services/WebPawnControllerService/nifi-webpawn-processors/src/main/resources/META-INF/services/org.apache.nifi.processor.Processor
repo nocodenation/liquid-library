@@ -1,0 +1,2 @@
+com.liquid.library.nifi.processors.ExecuteWebPawn
+com.liquid.library.nifi.processors.OrchestrateWebPawn

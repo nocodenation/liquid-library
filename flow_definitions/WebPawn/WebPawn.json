@@ -1,0 +1,665 @@
+{
+    "flowContents": {
+        "identifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+        "instanceIdentifier": "05d69292-019b-1000-cd0b-1e10ce46457e",
+        "name": "WebPawn",
+        "comments": "",
+        "position": {
+            "x": 80.0,
+            "y": 40.0
+        },
+        "processGroups": [],
+        "remoteProcessGroups": [],
+        "processors": [
+            {
+                "identifier": "18424c8d-3d3a-364d-8d1c-eddf2d837a6b",
+                "instanceIdentifier": "0533042c-019b-1000-245d-2cb1a09a2a2c",
+                "name": "WebPawn",
+                "comments": "A \"Human-in-the-loop\" web automation processor using Playwright and Gemini 1.5 Flash. It executes actions, takes screenshots, and replays journals to restore state. Helper-free, persistent sessions, and valid scroll support.",
+                "position": {
+                    "x": -64.25,
+                    "y": 32.0
+                },
+                "type": "WebPawn",
+                "bundle": {
+                    "group": "org.apache.nifi",
+                    "artifact": "python-extensions",
+                    "version": "0.0.1-SNAPSHOT"
+                },
+                "properties": {
+                    "Screenshot Directory": "/files/webpawn_screenshots",
+                    "Gemini Model Name": "gemini-2.5-flash",
+                    "Headless Mode": "true",
+                    "Journal Directory": "/files/webpawn_journals",
+                    "Browser Type": "chromium",
+                    "Start URL": "https://www.linkedin.com/in/felix-hoffmann-7learnings/"
+                },
+                "propertyDescriptors": {
+                    "Screenshot Directory": {
+                        "name": "Screenshot Directory",
+                        "displayName": "Screenshot Directory",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "Gemini Model Name": {
+                        "name": "Gemini Model Name",
+                        "displayName": "Gemini Model Name",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "Headless Mode": {
+                        "name": "Headless Mode",
+                        "displayName": "Headless Mode",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "Gemini API Key": {
+                        "name": "Gemini API Key",
+                        "displayName": "Gemini API Key",
+                        "identifiesControllerService": false,
+                        "sensitive": true,
+                        "dynamic": false
+                    },
+                    "Journal Directory": {
+                        "name": "Journal Directory",
+                        "displayName": "Journal Directory",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "Browser Type": {
+                        "name": "Browser Type",
+                        "displayName": "Browser Type",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "Start URL": {
+                        "name": "Start URL",
+                        "displayName": "Start URL",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    }
+                },
+                "style": {},
+                "schedulingPeriod": "0 sec",
+                "schedulingStrategy": "TIMER_DRIVEN",
+                "executionNode": "ALL",
+                "penaltyDuration": "30 sec",
+                "yieldDuration": "1 sec",
+                "bulletinLevel": "WARN",
+                "runDurationMillis": 25,
+                "concurrentlySchedulableTaskCount": 1,
+                "autoTerminatedRelationships": [],
+                "scheduledState": "ENABLED",
+                "retryCount": 10,
+                "retriedRelationships": [],
+                "backoffMechanism": "PENALIZE_FLOWFILE",
+                "maxBackoffPeriod": "10 mins",
+                "componentType": "PROCESSOR",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            },
+            {
+                "identifier": "e946bc01-1b02-3495-af71-b811bbc581d4",
+                "instanceIdentifier": "052fb76e-019b-1000-27cd-a87f6be5f390",
+                "name": "GenerateFlowFile",
+                "comments": "",
+                "position": {
+                    "x": -64.25,
+                    "y": -315.5
+                },
+                "type": "org.apache.nifi.processors.standard.GenerateFlowFile",
+                "bundle": {
+                    "group": "org.apache.nifi",
+                    "artifact": "nifi-standard-nar",
+                    "version": "2.6.0"
+                },
+                "properties": {
+                    "character-set": "UTF-8",
+                    "File Size": "0B",
+                    "mime-type": null,
+                    "generate-ff-custom-text": null,
+                    "Batch Size": "1",
+                    "Unique FlowFiles": "false",
+                    "Data Format": "Text"
+                },
+                "propertyDescriptors": {
+                    "character-set": {
+                        "name": "character-set",
+                        "displayName": "Character Set",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "File Size": {
+                        "name": "File Size",
+                        "displayName": "File Size",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "mime-type": {
+                        "name": "mime-type",
+                        "displayName": "Mime Type",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "generate-ff-custom-text": {
+                        "name": "generate-ff-custom-text",
+                        "displayName": "Custom Text",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "Batch Size": {
+                        "name": "Batch Size",
+                        "displayName": "Batch Size",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "Unique FlowFiles": {
+                        "name": "Unique FlowFiles",
+                        "displayName": "Unique FlowFiles",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "Data Format": {
+                        "name": "Data Format",
+                        "displayName": "Data Format",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    }
+                },
+                "style": {},
+                "schedulingPeriod": "1 min",
+                "schedulingStrategy": "TIMER_DRIVEN",
+                "executionNode": "ALL",
+                "penaltyDuration": "30 sec",
+                "yieldDuration": "1 sec",
+                "bulletinLevel": "WARN",
+                "runDurationMillis": 0,
+                "concurrentlySchedulableTaskCount": 1,
+                "autoTerminatedRelationships": [],
+                "scheduledState": "ENABLED",
+                "retryCount": 10,
+                "retriedRelationships": [],
+                "backoffMechanism": "PENALIZE_FLOWFILE",
+                "maxBackoffPeriod": "10 mins",
+                "componentType": "PROCESSOR",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            },
+            {
+                "identifier": "4e2bf191-735e-3d8f-94d9-6b17fe381be1",
+                "instanceIdentifier": "0556c58e-019b-1000-5339-553ed7d49408",
+                "name": "Update next_step_prompt & json_journal_location",
+                "comments": "",
+                "position": {
+                    "x": 480.0,
+                    "y": 240.0
+                },
+                "type": "org.apache.nifi.processors.attributes.UpdateAttribute",
+                "bundle": {
+                    "group": "org.apache.nifi",
+                    "artifact": "nifi-update-attribute-nar",
+                    "version": "2.6.0"
+                },
+                "properties": {
+                    "Delete Attributes Expression": null,
+                    "Store State": "Do not store state",
+                    "canonical-value-lookup-cache-size": "100",
+                    "json_journal_location": "/files/webpawn_journals/journal_1765321088467.json",
+                    "next_step_prompt": "Scroll down one page height.",
+                    "Stateful Variables Initial Value": null
+                },
+                "propertyDescriptors": {
+                    "Delete Attributes Expression": {
+                        "name": "Delete Attributes Expression",
+                        "displayName": "Delete Attributes Expression",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "Store State": {
+                        "name": "Store State",
+                        "displayName": "Store State",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "canonical-value-lookup-cache-size": {
+                        "name": "canonical-value-lookup-cache-size",
+                        "displayName": "Cache Value Lookup Cache Size",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    },
+                    "json_journal_location": {
+                        "name": "json_journal_location",
+                        "displayName": "json_journal_location",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": true
+                    },
+                    "next_step_prompt": {
+                        "name": "next_step_prompt",
+                        "displayName": "next_step_prompt",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": true
+                    },
+                    "Stateful Variables Initial Value": {
+                        "name": "Stateful Variables Initial Value",
+                        "displayName": "Stateful Variables Initial Value",
+                        "identifiesControllerService": false,
+                        "sensitive": false,
+                        "dynamic": false
+                    }
+                },
+                "style": {},
+                "schedulingPeriod": "0 sec",
+                "schedulingStrategy": "TIMER_DRIVEN",
+                "executionNode": "ALL",
+                "penaltyDuration": "30 sec",
+                "yieldDuration": "1 sec",
+                "bulletinLevel": "WARN",
+                "runDurationMillis": 25,
+                "concurrentlySchedulableTaskCount": 1,
+                "autoTerminatedRelationships": [],
+                "scheduledState": "ENABLED",
+                "retryCount": 10,
+                "retriedRelationships": [],
+                "backoffMechanism": "PENALIZE_FLOWFILE",
+                "maxBackoffPeriod": "10 mins",
+                "componentType": "PROCESSOR",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            }
+        ],
+        "inputPorts": [],
+        "outputPorts": [],
+        "connections": [
+            {
+                "identifier": "ed896223-4cbc-38a6-9217-2cc8a4e64f13",
+                "instanceIdentifier": "05334b61-019b-1000-aadb-9b3353f327de",
+                "name": "",
+                "source": {
+                    "id": "935fa6f0-cbbf-36cd-93a3-15e58b2e8daf",
+                    "type": "FUNNEL",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "Funnel",
+                    "comments": "",
+                    "instanceIdentifier": "05331444-019b-1000-169c-54c6b34b98ef"
+                },
+                "destination": {
+                    "id": "18424c8d-3d3a-364d-8d1c-eddf2d837a6b",
+                    "type": "PROCESSOR",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "WebPawn",
+                    "comments": "",
+                    "instanceIdentifier": "0533042c-019b-1000-245d-2cb1a09a2a2c"
+                },
+                "labelIndex": 0,
+                "zIndex": 1,
+                "selectedRelationships": [
+                    ""
+                ],
+                "backPressureObjectThreshold": 10000,
+                "backPressureDataSizeThreshold": "1 GB",
+                "flowFileExpiration": "0 sec",
+                "prioritizers": [],
+                "bends": [],
+                "loadBalanceStrategy": "DO_NOT_LOAD_BALANCE",
+                "partitioningAttribute": "",
+                "loadBalanceCompression": "DO_NOT_COMPRESS",
+                "componentType": "CONNECTION",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            },
+            {
+                "identifier": "6e3540c7-3da3-3739-a383-a1f2cf8685d2",
+                "instanceIdentifier": "05335660-019b-1000-314c-786663bb3d2c",
+                "name": "",
+                "source": {
+                    "id": "e946bc01-1b02-3495-af71-b811bbc581d4",
+                    "type": "PROCESSOR",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "GenerateFlowFile",
+                    "comments": "",
+                    "instanceIdentifier": "052fb76e-019b-1000-27cd-a87f6be5f390"
+                },
+                "destination": {
+                    "id": "935fa6f0-cbbf-36cd-93a3-15e58b2e8daf",
+                    "type": "FUNNEL",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "Funnel",
+                    "comments": "",
+                    "instanceIdentifier": "05331444-019b-1000-169c-54c6b34b98ef"
+                },
+                "labelIndex": 0,
+                "zIndex": 2,
+                "selectedRelationships": [
+                    "success"
+                ],
+                "backPressureObjectThreshold": 10000,
+                "backPressureDataSizeThreshold": "1 GB",
+                "flowFileExpiration": "0 sec",
+                "prioritizers": [],
+                "bends": [],
+                "loadBalanceStrategy": "DO_NOT_LOAD_BALANCE",
+                "partitioningAttribute": "",
+                "loadBalanceCompression": "DO_NOT_COMPRESS",
+                "componentType": "CONNECTION",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            },
+            {
+                "identifier": "94afa0f7-9571-31bf-8c26-e865e8244f1a",
+                "instanceIdentifier": "0556d749-019b-1000-8c20-713572eb3fdd",
+                "name": "",
+                "source": {
+                    "id": "d7ef1c53-5205-3660-9ed3-f79b9cab4ced",
+                    "type": "FUNNEL",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "Funnel",
+                    "comments": "",
+                    "instanceIdentifier": "05332156-019b-1000-adb5-19bfe6350990"
+                },
+                "destination": {
+                    "id": "4e2bf191-735e-3d8f-94d9-6b17fe381be1",
+                    "type": "PROCESSOR",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "Update next_step_prompt & json_journal_location",
+                    "comments": "",
+                    "instanceIdentifier": "0556c58e-019b-1000-5339-553ed7d49408"
+                },
+                "labelIndex": 0,
+                "zIndex": 6,
+                "selectedRelationships": [
+                    ""
+                ],
+                "backPressureObjectThreshold": 10000,
+                "backPressureDataSizeThreshold": "1 GB",
+                "flowFileExpiration": "0 sec",
+                "prioritizers": [],
+                "bends": [],
+                "loadBalanceStrategy": "DO_NOT_LOAD_BALANCE",
+                "partitioningAttribute": "",
+                "loadBalanceCompression": "DO_NOT_COMPRESS",
+                "componentType": "CONNECTION",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            },
+            {
+                "identifier": "0e1fe387-b442-3d0d-b593-adbf8d1d25b7",
+                "instanceIdentifier": "05577028-019b-1000-aae6-214bcaf69b45",
+                "name": "",
+                "source": {
+                    "id": "4e2bf191-735e-3d8f-94d9-6b17fe381be1",
+                    "type": "PROCESSOR",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "Update next_step_prompt & json_journal_location",
+                    "comments": "",
+                    "instanceIdentifier": "0556c58e-019b-1000-5339-553ed7d49408"
+                },
+                "destination": {
+                    "id": "fc82304f-71a4-34ba-acb6-1978afe5aa3b",
+                    "type": "FUNNEL",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "Funnel",
+                    "comments": "",
+                    "instanceIdentifier": "05575d8e-019b-1000-a6bf-e4f4f2ffdb26"
+                },
+                "labelIndex": 0,
+                "zIndex": 7,
+                "selectedRelationships": [
+                    "success"
+                ],
+                "backPressureObjectThreshold": 10000,
+                "backPressureDataSizeThreshold": "1 GB",
+                "flowFileExpiration": "0 sec",
+                "prioritizers": [],
+                "bends": [],
+                "loadBalanceStrategy": "DO_NOT_LOAD_BALANCE",
+                "partitioningAttribute": "",
+                "loadBalanceCompression": "DO_NOT_COMPRESS",
+                "componentType": "CONNECTION",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            },
+            {
+                "identifier": "d9f78703-7224-3021-bd8b-b12f26708ff8",
+                "instanceIdentifier": "0547f8ec-019b-1000-ced7-b6d13e09f76d",
+                "name": "",
+                "source": {
+                    "id": "18424c8d-3d3a-364d-8d1c-eddf2d837a6b",
+                    "type": "PROCESSOR",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "WebPawn",
+                    "comments": "",
+                    "instanceIdentifier": "0533042c-019b-1000-245d-2cb1a09a2a2c"
+                },
+                "destination": {
+                    "id": "d7ef1c53-5205-3660-9ed3-f79b9cab4ced",
+                    "type": "FUNNEL",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "Funnel",
+                    "comments": "",
+                    "instanceIdentifier": "05332156-019b-1000-adb5-19bfe6350990"
+                },
+                "labelIndex": 0,
+                "zIndex": 3,
+                "selectedRelationships": [
+                    "success"
+                ],
+                "backPressureObjectThreshold": 10000,
+                "backPressureDataSizeThreshold": "1 GB",
+                "flowFileExpiration": "0 sec",
+                "prioritizers": [],
+                "bends": [],
+                "loadBalanceStrategy": "DO_NOT_LOAD_BALANCE",
+                "partitioningAttribute": "",
+                "loadBalanceCompression": "DO_NOT_COMPRESS",
+                "componentType": "CONNECTION",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            },
+            {
+                "identifier": "7e4502e8-8349-3963-9582-93106d2ac1b0",
+                "instanceIdentifier": "05481ba3-019b-1000-9da7-7ee3ce786b6d",
+                "name": "",
+                "source": {
+                    "id": "18424c8d-3d3a-364d-8d1c-eddf2d837a6b",
+                    "type": "PROCESSOR",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "WebPawn",
+                    "comments": "",
+                    "instanceIdentifier": "0533042c-019b-1000-245d-2cb1a09a2a2c"
+                },
+                "destination": {
+                    "id": "33ec5459-debe-3031-bab4-020e1ec4ee70",
+                    "type": "FUNNEL",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "Funnel",
+                    "comments": "",
+                    "instanceIdentifier": "05332fb6-019b-1000-9f6f-478cc181ccdb"
+                },
+                "labelIndex": 0,
+                "zIndex": 5,
+                "selectedRelationships": [
+                    "original"
+                ],
+                "backPressureObjectThreshold": 10000,
+                "backPressureDataSizeThreshold": "1 GB",
+                "flowFileExpiration": "0 sec",
+                "prioritizers": [],
+                "bends": [],
+                "loadBalanceStrategy": "DO_NOT_LOAD_BALANCE",
+                "partitioningAttribute": "",
+                "loadBalanceCompression": "DO_NOT_COMPRESS",
+                "componentType": "CONNECTION",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            },
+            {
+                "identifier": "42f7641c-d6a9-393f-b921-dfc801da5129",
+                "instanceIdentifier": "05594430-019b-1000-330c-2a9632a3c3cd",
+                "name": "",
+                "source": {
+                    "id": "fc82304f-71a4-34ba-acb6-1978afe5aa3b",
+                    "type": "FUNNEL",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "Funnel",
+                    "comments": "",
+                    "instanceIdentifier": "05575d8e-019b-1000-a6bf-e4f4f2ffdb26"
+                },
+                "destination": {
+                    "id": "18424c8d-3d3a-364d-8d1c-eddf2d837a6b",
+                    "type": "PROCESSOR",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "WebPawn",
+                    "comments": "",
+                    "instanceIdentifier": "0533042c-019b-1000-245d-2cb1a09a2a2c"
+                },
+                "labelIndex": 0,
+                "zIndex": 8,
+                "selectedRelationships": [
+                    ""
+                ],
+                "backPressureObjectThreshold": 10000,
+                "backPressureDataSizeThreshold": "1 GB",
+                "flowFileExpiration": "0 sec",
+                "prioritizers": [],
+                "bends": [],
+                "loadBalanceStrategy": "DO_NOT_LOAD_BALANCE",
+                "partitioningAttribute": "",
+                "loadBalanceCompression": "DO_NOT_COMPRESS",
+                "componentType": "CONNECTION",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            },
+            {
+                "identifier": "9083c4b8-1067-355d-8209-47ebd0292723",
+                "instanceIdentifier": "05480d3e-019b-1000-debe-0b3d8add2f81",
+                "name": "",
+                "source": {
+                    "id": "18424c8d-3d3a-364d-8d1c-eddf2d837a6b",
+                    "type": "PROCESSOR",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "WebPawn",
+                    "comments": "",
+                    "instanceIdentifier": "0533042c-019b-1000-245d-2cb1a09a2a2c"
+                },
+                "destination": {
+                    "id": "1e3bafda-5f12-3345-8cb9-0c98de501c9d",
+                    "type": "FUNNEL",
+                    "groupId": "41de1f33-00c7-3d7f-82b5-46c0b3473849",
+                    "name": "Funnel",
+                    "comments": "",
+                    "instanceIdentifier": "05332938-019b-1000-a48d-bdb6931ba273"
+                },
+                "labelIndex": 0,
+                "zIndex": 4,
+                "selectedRelationships": [
+                    "failure"
+                ],
+                "backPressureObjectThreshold": 10000,
+                "backPressureDataSizeThreshold": "1 GB",
+                "flowFileExpiration": "0 sec",
+                "prioritizers": [],
+                "bends": [],
+                "loadBalanceStrategy": "DO_NOT_LOAD_BALANCE",
+                "partitioningAttribute": "",
+                "loadBalanceCompression": "DO_NOT_COMPRESS",
+                "componentType": "CONNECTION",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            }
+        ],
+        "labels": [
+            {
+                "identifier": "c3ff11f6-0d25-3e52-b593-0e224553a739",
+                "instanceIdentifier": "05d5e501-019b-1000-8ddd-add4a4608de9",
+                "position": {
+                    "x": 776.0,
+                    "y": -88.0
+                },
+                "label": "This circular flow has to be run in a Run-Once manner",
+                "zIndex": 1,
+                "width": 320.0,
+                "height": 264.0,
+                "style": {
+                    "font-size": "24px"
+                },
+                "componentType": "LABEL",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            }
+        ],
+        "funnels": [
+            {
+                "identifier": "d7ef1c53-5205-3660-9ed3-f79b9cab4ced",
+                "instanceIdentifier": "05332156-019b-1000-adb5-19bfe6350990",
+                "position": {
+                    "x": 87.75,
+                    "y": 280.5
+                },
+                "componentType": "FUNNEL",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            },
+            {
+                "identifier": "fc82304f-71a4-34ba-acb6-1978afe5aa3b",
+                "instanceIdentifier": "05575d8e-019b-1000-a6bf-e4f4f2ffdb26",
+                "position": {
+                    "x": 632.0,
+                    "y": 72.0
+                },
+                "componentType": "FUNNEL",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            },
+            {
+                "identifier": "1e3bafda-5f12-3345-8cb9-0c98de501c9d",
+                "instanceIdentifier": "05332938-019b-1000-a48d-bdb6931ba273",
+                "position": {
+                    "x": -496.0,
+                    "y": -120.0
+                },
+                "componentType": "FUNNEL",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            },
+            {
+                "identifier": "33ec5459-debe-3031-bab4-020e1ec4ee70",
+                "instanceIdentifier": "05332fb6-019b-1000-9f6f-478cc181ccdb",
+                "position": {
+                    "x": -485.5,
+                    "y": 124.5
+                },
+                "componentType": "FUNNEL",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            },
+            {
+                "identifier": "935fa6f0-cbbf-36cd-93a3-15e58b2e8daf",
+                "instanceIdentifier": "05331444-019b-1000-169c-54c6b34b98ef",
+                "position": {
+                    "x": 87.75,
+                    "y": -112.0
+                },
+                "componentType": "FUNNEL",
+                "groupIdentifier": "41de1f33-00c7-3d7f-82b5-46c0b3473849"
+            }
+        ],
+        "controllerServices": [],
+        "defaultFlowFileExpiration": "0 sec",
+        "defaultBackPressureObjectThreshold": 10000,
+        "defaultBackPressureDataSizeThreshold": "1 GB",
+        "scheduledState": "ENABLED",
+        "executionEngine": "INHERITED",
+        "maxConcurrentTasks": 1,
+        "statelessFlowTimeout": "1 min",
+        "flowFileConcurrency": "UNBOUNDED",
+        "flowFileOutboundPolicy": "STREAM_WHEN_AVAILABLE",
+        "componentType": "PROCESS_GROUP"
+    },
+    "externalControllerServices": {},
+    "parameterContexts": {},
+    "flowEncodingVersion": "1.0",
+    "parameterProviders": {},
+    "latest": false
+}
