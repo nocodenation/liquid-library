@@ -5,6 +5,7 @@ import urllib.parse
 import urllib.error
 from nifiapi.flowfiletransform import FlowFileTransform, FlowFileTransformResult
 from nifiapi.properties import PropertyDescriptor, StandardValidators, ExpressionLanguageScope
+from nifiapi.relationship import Relationship
 
 class ReceiveFromNodeJSApp(FlowFileTransform):
     class Java:
@@ -14,7 +15,7 @@ class ReceiveFromNodeJSApp(FlowFileTransform):
         version = '1.0.0-SNAPSHOT'
         description = '''Receives HTTP requests from Node.js applications via the NodeJSAppAPIGateway controller service.
         This processor polls the gateway's internal API for requests matching the configured endpoint pattern.'''
-        tags = ['nodejs', 'http', 'gateway', 'api', 'rest', 'python']
+        tags = ['nocodenation', 'nodejs', 'http', 'gateway', 'api', 'rest', 'python']
 
     def __init__(self, **kwargs):
         self.gateway_url = None
@@ -49,6 +50,24 @@ class ReceiveFromNodeJSApp(FlowFileTransform):
     def getPropertyDescriptors(self):
         return [self.GATEWAY_URL, self.ENDPOINT_PATTERN, self.POLL_TIMEOUT]
 
+    def getRelationships(self):
+        """Define output relationships for this processor."""
+        return [
+            Relationship(
+                name="success",
+                description="Successfully received and parsed an HTTP request from the gateway"
+            ),
+            Relationship(
+                name="failure",
+                description="Failed to retrieve or parse request due to an error (network error, invalid JSON, etc.)"
+            ),
+            Relationship(
+                name="no_data",
+                description="No data available from gateway within the poll timeout period. " +
+                           "This is a normal condition when no requests are pending."
+            )
+        ]
+
     def onScheduled(self, context):
         """Called when the processor is scheduled to run."""
         self.gateway_url = context.getProperty(self.GATEWAY_URL).evaluateAttributeExpressions().getValue()
@@ -82,31 +101,61 @@ class ReceiveFromNodeJSApp(FlowFileTransform):
                     if response.status == 204:
                         # No content - timeout, no request available
                         self.logger.debug("Poll timeout - no requests available")
-                        return FlowFileTransformResult(relationship="success")
+                        return FlowFileTransformResult(relationship="no_data")
 
                     if response.status != 200:
-                        self.logger.error(f"Gateway returned status {response.status}")
-                        return FlowFileTransformResult(relationship="failure")
+                        error_attrs = {
+                            'error.message': f"Gateway returned unexpected status: {response.status}",
+                            'error.type': 'UnexpectedStatus',
+                            'error.http.code': str(response.status)
+                        }
+                        self.logger.error(error_attrs['error.message'])
+                        return FlowFileTransformResult(relationship="failure", attributes=error_attrs)
 
                     # Read and parse response
                     response_data = response.read().decode('utf-8')
-                    request_json = json.loads(response_data)
+
+                    try:
+                        request_json = json.loads(response_data)
+                    except json.JSONDecodeError as e:
+                        error_attrs = {
+                            'error.message': f"Invalid JSON response from gateway: {str(e)}",
+                            'error.type': 'JSONDecodeError',
+                            'error.response': response_data[:500] if len(response_data) <= 500 else response_data[:500] + "..."
+                        }
+                        self.logger.error(error_attrs['error.message'])
+                        return FlowFileTransformResult(relationship="failure", attributes=error_attrs)
 
             except urllib.error.HTTPError as e:
                 if e.code == 404:
-                    self.logger.error(f"Endpoint pattern '{self.endpoint_pattern}' not registered with gateway")
-                    return FlowFileTransformResult(relationship="failure")
+                    error_attrs = {
+                        'error.message': f"Endpoint pattern '{self.endpoint_pattern}' not registered with gateway",
+                        'error.type': 'EndpointNotFound',
+                        'error.http.code': '404'
+                    }
+                    self.logger.error(error_attrs['error.message'])
+                    return FlowFileTransformResult(relationship="failure", attributes=error_attrs)
                 else:
-                    self.logger.error(f"HTTP error polling gateway: {e.code} - {e.reason}")
-                    return FlowFileTransformResult(relationship="failure")
+                    error_attrs = {
+                        'error.message': f"HTTP error polling gateway: {e.code} - {e.reason}",
+                        'error.type': 'HTTPError',
+                        'error.http.code': str(e.code)
+                    }
+                    self.logger.error(error_attrs['error.message'])
+                    return FlowFileTransformResult(relationship="failure", attributes=error_attrs)
 
             except urllib.error.URLError as e:
-                self.logger.error(f"URL error polling gateway: {str(e.reason)}")
-                return FlowFileTransformResult(relationship="failure")
+                error_attrs = {
+                    'error.message': f"URL error polling gateway: {str(e.reason)}",
+                    'error.type': 'URLError',
+                    'error.gateway.url': poll_url
+                }
+                self.logger.error(error_attrs['error.message'])
+                return FlowFileTransformResult(relationship="failure", attributes=error_attrs)
 
             except TimeoutError:
                 self.logger.debug("Poll timeout - no requests available")
-                return FlowFileTransformResult(relationship="success")
+                return FlowFileTransformResult(relationship="no_data")
 
             # Extract request data
             method = request_json.get('method', '')
@@ -160,7 +209,12 @@ class ReceiveFromNodeJSApp(FlowFileTransform):
             )
 
         except Exception as e:
-            self.logger.error(f"Error processing request: {str(e)}")
             import traceback
+            error_attrs = {
+                'error.message': f"Unexpected error processing request: {str(e)}",
+                'error.type': type(e).__name__,
+                'error.traceback': traceback.format_exc()[:1000]  # First 1000 chars
+            }
+            self.logger.error(error_attrs['error.message'])
             self.logger.error(traceback.format_exc())
-            return FlowFileTransformResult(relationship="failure")
+            return FlowFileTransformResult(relationship="failure", attributes=error_attrs)

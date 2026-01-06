@@ -25,11 +25,10 @@ import org.apache.nifi.controller.AbstractControllerService;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.processor.util.StandardValidators;
-// TODO: Add nifi-ssl-context-service dependency to pom.xml and uncomment:
-// import org.apache.nifi.ssl.SSLContextService;
-// import org.eclipse.jetty.server.ServerConnector;
-// import org.eclipse.jetty.util.ssl.SslContextFactory;
-// import javax.net.ssl.SSLContext;
+import org.apache.nifi.ssl.SSLContextService;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+import javax.net.ssl.SSLContext;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
@@ -55,7 +54,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  *
  * @since 1.0.0
  */
-@Tags({"nodejs", "http", "gateway", "api"})
+@Tags({"nocodenation", "nodejs", "http", "gateway", "api"})
 @CapabilityDescription("Provides HTTP gateway for Node.js applications to send requests into NiFi flows")
 public class StandardNodeJSAppAPIGateway extends AbstractControllerService implements NodeJSAppAPIGateway {
 
@@ -77,14 +76,13 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
             .expressionLanguageSupported(ExpressionLanguageScope.ENVIRONMENT)
             .build();
 
-    // TODO: Uncomment when nifi-ssl-context-service dependency is added to pom.xml
-    // public static final PropertyDescriptor SSL_CONTEXT_SERVICE = new PropertyDescriptor.Builder()
-    //         .name("SSL Context Service")
-    //         .description("SSL Context Service to use for HTTPS. If not specified, HTTP will be used. " +
-    //                 "IMPORTANT: Using HTTP (without SSL) is NOT recommended for production deployments as data will be transmitted in plaintext.")
-    //         .required(false)
-    //         .identifiesControllerService(SSLContextService.class)
-    //         .build();
+    public static final PropertyDescriptor SSL_CONTEXT_SERVICE = new PropertyDescriptor.Builder()
+            .name("SSL Context Service")
+            .description("SSL Context Service to use for HTTPS. If not specified, HTTP will be used. " +
+                    "IMPORTANT: Using HTTP (without SSL) is NOT recommended for production deployments as data will be transmitted in plaintext.")
+            .required(false)
+            .identifiesControllerService(SSLContextService.class)
+            .build();
 
     public static final PropertyDescriptor MAX_QUEUE_SIZE = new PropertyDescriptor.Builder()
             .name("Maximum Queue Size")
@@ -179,6 +177,7 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         List<PropertyDescriptor> props = new ArrayList<>();
         props.add(GATEWAY_HOST);
         props.add(GATEWAY_PORT);
+        props.add(SSL_CONTEXT_SERVICE);
         props.add(MAX_QUEUE_SIZE);
         props.add(MAX_REQUEST_SIZE);
         props.add(ENABLE_CORS);
@@ -205,6 +204,7 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
     private String corsAllowedMethods;
     private String corsAllowedHeaders;
     private String corsMaxAge;
+    private SSLContextService sslContextService;
 
     // Endpoint registry - maps pattern to handler and queue
     private final Map<String, EndpointRegistration> endpointRegistry = new ConcurrentHashMap<>();
@@ -240,6 +240,8 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         this.swaggerEnabled = context.getProperty(SWAGGER_ENABLED).asBoolean();
         this.swaggerPath = context.getProperty(SWAGGER_PATH).getValue();
         this.openapiPath = context.getProperty(OPENAPI_PATH).getValue();
+        this.sslContextService = context.getProperty(SSL_CONTEXT_SERVICE)
+                .asControllerService(SSLContextService.class);
 
         startServer();
         getLogger().info("NodeJS App API Gateway started on {}:{}", gatewayHost, gatewayPort);
@@ -267,7 +269,8 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
     public String getGatewayUrl() {
         // Return localhost if bound to 0.0.0.0, otherwise use the configured host
         String host = "0.0.0.0".equals(gatewayHost) ? "localhost" : gatewayHost;
-        return "http://" + host + ":" + gatewayPort;
+        String protocol = (sslContextService != null) ? "https" : "http";
+        return protocol + "://" + host + ":" + gatewayPort;
     }
 
     @Override
@@ -453,28 +456,38 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
     }
 
     private void startServer() throws Exception {
-        // TODO: Implement HTTPS support when dependency is available
-        // SSLContextService sslService = context.getProperty(SSL_CONTEXT_SERVICE).asControllerService(SSLContextService.class);
-        // Server server = new Server();
-        // ServerConnector connector;
-        // if (sslService != null) {
-        //     SSLContext sslContext = sslService.createContext();
-        //     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
-        //     sslContextFactory.setSslContext(sslContext);
-        //     connector = new ServerConnector(server, sslContextFactory);
-        //     getLogger().info("Gateway configured with HTTPS");
-        // } else {
-        //     connector = new ServerConnector(server);
-        //     getLogger().warn("Gateway configured with HTTP only - not recommended for production");
-        // }
-        // connector.setHost(gatewayHost);
-        // connector.setPort(gatewayPort);
-        // server.addConnector(connector);
+        // Create server
+        server = new Server();
 
-        // Create server with specific host and port binding
-        java.net.InetSocketAddress address = new java.net.InetSocketAddress(gatewayHost, gatewayPort);
-        server = new Server(address);
+        // Configure connector (HTTP or HTTPS based on SSL configuration)
+        ServerConnector connector;
 
+        if (sslContextService != null) {
+            // HTTPS mode
+            try {
+                SSLContext sslContext = sslContextService.createContext();
+                SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+                sslContextFactory.setSslContext(sslContext);
+
+                connector = new ServerConnector(server, sslContextFactory);
+                getLogger().info("Gateway configured with HTTPS using SSL Context Service");
+            } catch (Exception e) {
+                getLogger().error("Failed to create SSL context, falling back to HTTP: {}", e.getMessage());
+                throw new RuntimeException("SSL configuration failed: " + e.getMessage(), e);
+            }
+        } else {
+            // HTTP mode
+            connector = new ServerConnector(server);
+            getLogger().warn("Gateway configured with HTTP only - SSL Context Service not specified. " +
+                    "This is NOT recommended for production deployments as data will be transmitted in plaintext.");
+        }
+
+        // Configure connector host and port
+        connector.setHost(gatewayHost);
+        connector.setPort(gatewayPort);
+        server.addConnector(connector);
+
+        // Create servlet context
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
 
@@ -486,7 +499,7 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         if (swaggerEnabled) {
             openapiGenerator = new OpenAPIGenerator(getGatewayUrl());
             context.addServlet(new ServletHolder(new OpenAPIServlet(openapiGenerator, this)), openapiPath);
-            context.addServlet(new ServletHolder(new SwaggerServlet(openapiPath)), swaggerPath + "/*");
+            context.addServlet(new ServletHolder(new SwaggerServlet(this, openapiPath)), swaggerPath + "/*");
             getLogger().debug("Registered Swagger UI servlets: {} and {}", swaggerPath, openapiPath);
         }
 

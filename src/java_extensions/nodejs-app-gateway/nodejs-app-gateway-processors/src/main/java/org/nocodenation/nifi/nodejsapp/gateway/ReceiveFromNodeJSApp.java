@@ -63,7 +63,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * @since 1.0.0
  */
-@Tags({"nodejs", "http", "gateway", "api", "rest"})
+@Tags({"nocodenation", "nodejs", "http", "gateway", "api", "rest"})
 @CapabilityDescription("Receives HTTP requests from Node.js applications via the NodeJSAppAPIGateway controller service. " +
         "Registers an endpoint pattern and creates FlowFiles for incoming requests with HTTP details as attributes.")
 @InputRequirement(InputRequirement.Requirement.INPUT_FORBIDDEN)
@@ -270,6 +270,16 @@ public class ReceiveFromNodeJSApp extends AbstractProcessor {
         attributes.put("http.path", request.getPath());
         attributes.put("http.client.address", request.getClientAddress());
         attributes.put("http.timestamp", request.getTimestamp().toString());
+
+        // Add MIME type if available
+        String contentType = request.getContentType();
+        if (contentType != null && !contentType.isEmpty()) {
+            // Extract MIME type from Content-Type header (before any parameters like charset)
+            String mimeType = contentType.split(";")[0].trim();
+            if (!mimeType.isEmpty()) {
+                attributes.put("mime.type", mimeType);
+            }
+        }
 
         // Add query parameters
         for (Map.Entry<String, String> param : request.getQueryParameters().entrySet()) {

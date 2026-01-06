@@ -19,9 +19,11 @@ import java.nio.charset.StandardCharsets;
 public class SwaggerServlet extends HttpServlet {
 
     private static final String RESOURCE_BASE = "/swagger-ui/";
+    private final StandardNodeJSAppAPIGateway gateway;
     private final String openapiSpecUrl;
 
-    public SwaggerServlet(String openapiSpecUrl) {
+    public SwaggerServlet(StandardNodeJSAppAPIGateway gateway, String openapiSpecUrl) {
+        this.gateway = gateway;
         this.openapiSpecUrl = openapiSpecUrl;
     }
 
@@ -47,14 +49,21 @@ public class SwaggerServlet extends HttpServlet {
         resp.setContentType("text/html");
         resp.setCharacterEncoding("UTF-8");
 
-        // Load index.html template
-        String html = loadResourceAsString("index.html");
+        try {
+            // Load index.html template
+            String html = loadResourceAsString("index.html");
 
-        // Inject OpenAPI spec URL
-        html = html.replace("{{OPENAPI_SPEC_URL}}", openapiSpecUrl);
+            // Inject OpenAPI spec URL
+            html = html.replace("{{OPENAPI_SPEC_URL}}", openapiSpecUrl);
 
-        resp.getWriter().write(html);
-        resp.setStatus(HttpServletResponse.SC_OK);
+            resp.getWriter().write(html);
+            resp.setStatus(HttpServletResponse.SC_OK);
+        } catch (IOException e) {
+            // Log using servlet logging (gateway logger is not accessible from servlet)
+            log("Failed to load Swagger UI: " + e.getMessage(), e);
+            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                "Swagger UI unavailable: " + e.getMessage());
+        }
     }
 
     /**

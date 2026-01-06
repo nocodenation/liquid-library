@@ -29,6 +29,14 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- SSL Context Service for HTTPS support -->
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-ssl-context-service-api</artifactId>
+            <version>${nifi.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- Jetty 12 for HTTP server (version managed by Jetty BOM) -->
         <dependency>
             <groupId>org.eclipse.jetty</groupId>

@@ -200,14 +200,73 @@ public class GatewayServlet extends HttpServlet {
     }
 
     private byte[] readRequestBody(HttpServletRequest req) throws IOException {
-        try (InputStream in = req.getInputStream();
+        // Protect against OOM attacks by limiting request body size
+        // Default maximum: 50MB (configurable via gateway property in future versions)
+        final long maxBodySize = 50 * 1024 * 1024; // 50MB
+
+        try (CountingInputStream countingIn = new CountingInputStream(req.getInputStream(), maxBodySize);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[8192];
             int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
+            try {
+                while ((bytesRead = countingIn.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
+            } catch (IOException e) {
+                if (e.getMessage() != null && e.getMessage().contains("Request body size exceeds maximum")) {
+                    // Log using servlet logging (gateway logger not accessible from servlet)
+                    log("Request body size exceeds maximum allowed size of " + maxBodySize +
+                        " bytes from " + req.getRemoteAddr());
+                    throw new IOException("Request body too large (exceeds " + maxBodySize + " bytes)", e);
+                }
+                throw e;
             }
             return out.toByteArray();
+        }
+    }
+
+    /**
+     * InputStream wrapper that counts bytes read and enforces a size limit.
+     */
+    private static class CountingInputStream extends InputStream {
+        private final InputStream delegate;
+        private final long maxBytes;
+        private long bytesRead = 0;
+
+        public CountingInputStream(InputStream delegate, long maxBytes) {
+            this.delegate = delegate;
+            this.maxBytes = maxBytes;
+        }
+
+        @Override
+        public int read() throws IOException {
+            int b = delegate.read();
+            if (b != -1) {
+                bytesRead++;
+                checkLimit();
+            }
+            return b;
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            int n = delegate.read(b, off, len);
+            if (n > 0) {
+                bytesRead += n;
+                checkLimit();
+            }
+            return n;
+        }
+
+        private void checkLimit() throws IOException {
+            if (bytesRead > maxBytes) {
+                throw new IOException("Request body size exceeds maximum allowed size of " + maxBytes + " bytes");
+            }
+        }
+
+        @Override
+        public void close() throws IOException {
+            delegate.close();
         }
     }
 
