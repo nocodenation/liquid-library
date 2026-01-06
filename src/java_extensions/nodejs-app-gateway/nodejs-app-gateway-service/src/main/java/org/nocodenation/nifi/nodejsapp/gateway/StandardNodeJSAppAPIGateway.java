@@ -25,6 +25,11 @@ import org.apache.nifi.controller.AbstractControllerService;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.processor.util.StandardValidators;
+// TODO: Add nifi-ssl-context-service dependency to pom.xml and uncomment:
+// import org.apache.nifi.ssl.SSLContextService;
+// import org.eclipse.jetty.server.ServerConnector;
+// import org.eclipse.jetty.util.ssl.SslContextFactory;
+// import javax.net.ssl.SSLContext;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
@@ -72,6 +77,15 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
             .expressionLanguageSupported(ExpressionLanguageScope.ENVIRONMENT)
             .build();
 
+    // TODO: Uncomment when nifi-ssl-context-service dependency is added to pom.xml
+    // public static final PropertyDescriptor SSL_CONTEXT_SERVICE = new PropertyDescriptor.Builder()
+    //         .name("SSL Context Service")
+    //         .description("SSL Context Service to use for HTTPS. If not specified, HTTP will be used. " +
+    //                 "IMPORTANT: Using HTTP (without SSL) is NOT recommended for production deployments as data will be transmitted in plaintext.")
+    //         .required(false)
+    //         .identifiesControllerService(SSLContextService.class)
+    //         .build();
+
     public static final PropertyDescriptor MAX_QUEUE_SIZE = new PropertyDescriptor.Builder()
             .name("Maximum Queue Size")
             .description("Maximum number of requests that can be queued per endpoint before rejecting with 503")
@@ -94,6 +108,43 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
             .required(true)
             .allowableValues("true", "false")
             .defaultValue("true")
+            .build();
+
+    public static final PropertyDescriptor CORS_ALLOWED_ORIGINS = new PropertyDescriptor.Builder()
+            .name("CORS Allowed Origins")
+            .description("Comma-separated list of allowed origins for CORS requests. Use '*' to allow all origins (NOT recommended for production). " +
+                    "Examples: 'https://example.com', 'https://app.example.com,https://admin.example.com'")
+            .required(false)
+            .defaultValue("*")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .dependsOn(ENABLE_CORS, "true")
+            .build();
+
+    public static final PropertyDescriptor CORS_ALLOWED_METHODS = new PropertyDescriptor.Builder()
+            .name("CORS Allowed Methods")
+            .description("Comma-separated list of HTTP methods allowed for CORS requests")
+            .required(false)
+            .defaultValue("GET, POST, PUT, DELETE, PATCH, OPTIONS")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .dependsOn(ENABLE_CORS, "true")
+            .build();
+
+    public static final PropertyDescriptor CORS_ALLOWED_HEADERS = new PropertyDescriptor.Builder()
+            .name("CORS Allowed Headers")
+            .description("Comma-separated list of HTTP headers allowed in CORS requests")
+            .required(false)
+            .defaultValue("Content-Type, Authorization, X-Requested-With, X-Event-Id, X-Timestamp, X-Stage")
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .dependsOn(ENABLE_CORS, "true")
+            .build();
+
+    public static final PropertyDescriptor CORS_MAX_AGE = new PropertyDescriptor.Builder()
+            .name("CORS Max Age")
+            .description("How long (in seconds) browsers should cache CORS preflight responses")
+            .required(false)
+            .defaultValue("3600")
+            .addValidator(StandardValidators.POSITIVE_INTEGER_VALIDATOR)
+            .dependsOn(ENABLE_CORS, "true")
             .build();
 
     public static final PropertyDescriptor SWAGGER_ENABLED = new PropertyDescriptor.Builder()
@@ -131,6 +182,10 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         props.add(MAX_QUEUE_SIZE);
         props.add(MAX_REQUEST_SIZE);
         props.add(ENABLE_CORS);
+        props.add(CORS_ALLOWED_ORIGINS);
+        props.add(CORS_ALLOWED_METHODS);
+        props.add(CORS_ALLOWED_HEADERS);
+        props.add(CORS_MAX_AGE);
         props.add(SWAGGER_ENABLED);
         props.add(SWAGGER_PATH);
         props.add(OPENAPI_PATH);
@@ -146,6 +201,10 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
     private int maxQueueSize;
     private long maxRequestSize;
     private boolean enableCors;
+    private String corsAllowedOrigins;
+    private String corsAllowedMethods;
+    private String corsAllowedHeaders;
+    private String corsMaxAge;
 
     // Endpoint registry - maps pattern to handler and queue
     private final Map<String, EndpointRegistration> endpointRegistry = new ConcurrentHashMap<>();
@@ -174,6 +233,10 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         this.maxQueueSize = context.getProperty(MAX_QUEUE_SIZE).asInteger();
         this.maxRequestSize = context.getProperty(MAX_REQUEST_SIZE).asLong();
         this.enableCors = context.getProperty(ENABLE_CORS).asBoolean();
+        this.corsAllowedOrigins = context.getProperty(CORS_ALLOWED_ORIGINS).getValue();
+        this.corsAllowedMethods = context.getProperty(CORS_ALLOWED_METHODS).getValue();
+        this.corsAllowedHeaders = context.getProperty(CORS_ALLOWED_HEADERS).getValue();
+        this.corsMaxAge = context.getProperty(CORS_MAX_AGE).getValue();
         this.swaggerEnabled = context.getProperty(SWAGGER_ENABLED).asBoolean();
         this.swaggerPath = context.getProperty(SWAGGER_PATH).getValue();
         this.openapiPath = context.getProperty(OPENAPI_PATH).getValue();
@@ -343,6 +406,22 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         return enableCors;
     }
 
+    public String getCorsAllowedOrigins() {
+        return corsAllowedOrigins;
+    }
+
+    public String getCorsAllowedMethods() {
+        return corsAllowedMethods;
+    }
+
+    public String getCorsAllowedHeaders() {
+        return corsAllowedHeaders;
+    }
+
+    public String getCorsMaxAge() {
+        return corsMaxAge;
+    }
+
     public Map<String, EndpointMetrics> getMetricsRegistry() {
         return Collections.unmodifiableMap(metricsRegistry);
     }
@@ -352,6 +431,24 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
     }
 
     private void startServer() throws Exception {
+        // TODO: Implement HTTPS support when dependency is available
+        // SSLContextService sslService = context.getProperty(SSL_CONTEXT_SERVICE).asControllerService(SSLContextService.class);
+        // Server server = new Server();
+        // ServerConnector connector;
+        // if (sslService != null) {
+        //     SSLContext sslContext = sslService.createContext();
+        //     SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+        //     sslContextFactory.setSslContext(sslContext);
+        //     connector = new ServerConnector(server, sslContextFactory);
+        //     getLogger().info("Gateway configured with HTTPS");
+        // } else {
+        //     connector = new ServerConnector(server);
+        //     getLogger().warn("Gateway configured with HTTP only - not recommended for production");
+        // }
+        // connector.setHost(gatewayHost);
+        // connector.setPort(gatewayPort);
+        // server.addConnector(connector);
+
         // Create server with specific host and port binding
         java.net.InetSocketAddress address = new java.net.InetSocketAddress(gatewayHost, gatewayPort);
         server = new Server(address);

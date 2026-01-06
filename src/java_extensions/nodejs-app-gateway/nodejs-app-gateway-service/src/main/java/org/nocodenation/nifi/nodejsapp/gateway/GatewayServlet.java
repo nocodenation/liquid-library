@@ -53,7 +53,13 @@ public class GatewayServlet extends HttpServlet {
 
     public GatewayServlet(StandardNodeJSAppAPIGateway gateway) {
         this.gateway = gateway;
-        this.corsHandler = new CorsHandler(gateway.isEnableCors());
+        this.corsHandler = new CorsHandler(
+            gateway.isEnableCors(),
+            gateway.getCorsAllowedOrigins(),
+            gateway.getCorsAllowedMethods(),
+            gateway.getCorsAllowedHeaders(),
+            gateway.getCorsMaxAge()
+        );
     }
 
     @Override

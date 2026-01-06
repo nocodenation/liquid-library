@@ -46,13 +46,6 @@ public class PathPatternParser {
     private static final Pattern PARAM_PATTERN = Pattern.compile(":([a-zA-Z_][a-zA-Z0-9_]*)");
 
     /**
-     * Private constructor - this is a utility class with only static methods.
-     */
-    private PathPatternParser() {
-        // Utility class
-    }
-
-    /**
      * Extracts parameter names from a NiFi path pattern.
      *
      * <p>Example:</p>

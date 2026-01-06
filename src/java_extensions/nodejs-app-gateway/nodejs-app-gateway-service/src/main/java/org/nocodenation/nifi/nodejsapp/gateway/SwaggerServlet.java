@@ -79,8 +79,9 @@ public class SwaggerServlet extends HttpServlet {
         resp.setContentType(contentType);
 
         // Add caching headers for static assets
+        // TODO: Implement cache invalidation with ETag or versioned URLs (v1.1.0)
         if (!path.endsWith(".html")) {
-            resp.setHeader("Cache-Control", "public, max-age=31536000"); // 1 year
+            resp.setHeader("Cache-Control", "public, max-age=1209600"); // 2 weeks
         }
 
         // Stream resource to response
@@ -106,7 +107,14 @@ public class SwaggerServlet extends HttpServlet {
             if (in == null) {
                 throw new IOException("Resource not found: " + name);
             }
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+
+            // Defensive check: reject files larger than 1MB
+            byte[] bytes = in.readAllBytes();
+            if (bytes.length > 1_048_576) {
+                throw new IOException("Resource too large: " + name + " (" + bytes.length + " bytes)");
+            }
+
+            return new String(bytes, StandardCharsets.UTF_8);
         }
     }
 

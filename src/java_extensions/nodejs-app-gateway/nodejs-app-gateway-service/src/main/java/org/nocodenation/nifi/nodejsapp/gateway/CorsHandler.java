@@ -36,14 +36,40 @@ import jakarta.servlet.http.HttpServletResponse;
 public class CorsHandler {
 
     private final boolean enabled;
+    private final String allowedOrigins;
+    private final String allowedMethods;
+    private final String allowedHeaders;
+    private final String maxAge;
 
     /**
-     * Creates a new CorsHandler.
+     * Creates a new CorsHandler with default permissive settings.
      *
      * @param enabled whether CORS is enabled
+     * @deprecated Use {@link #CorsHandler(boolean, String, String, String, String)} for production deployments
      */
+    @Deprecated
     public CorsHandler(boolean enabled) {
+        this(enabled, "*", "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+                "Content-Type, Authorization, X-Requested-With, X-Event-Id, X-Timestamp, X-Stage",
+                "3600");
+    }
+
+    /**
+     * Creates a new CorsHandler with configurable CORS headers.
+     *
+     * @param enabled whether CORS is enabled
+     * @param allowedOrigins comma-separated list of allowed origins (e.g., "https://example.com,https://app.example.com" or "*" for all)
+     * @param allowedMethods comma-separated list of allowed HTTP methods
+     * @param allowedHeaders comma-separated list of allowed request headers
+     * @param maxAge preflight cache duration in seconds
+     */
+    public CorsHandler(boolean enabled, String allowedOrigins, String allowedMethods,
+                      String allowedHeaders, String maxAge) {
         this.enabled = enabled;
+        this.allowedOrigins = allowedOrigins != null ? allowedOrigins : "*";
+        this.allowedMethods = allowedMethods != null ? allowedMethods : "GET, POST, PUT, DELETE, PATCH, OPTIONS";
+        this.allowedHeaders = allowedHeaders != null ? allowedHeaders : "Content-Type, Authorization";
+        this.maxAge = maxAge != null ? maxAge : "3600";
     }
 
     /**
@@ -84,23 +110,23 @@ public class CorsHandler {
     }
 
     /**
-     * Adds CORS headers to the response.
+     * Adds CORS headers to the response using configured values.
      *
      * <p>Headers added:</p>
      * <ul>
-     *   <li>Access-Control-Allow-Origin: * (allows all origins)</li>
-     *   <li>Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS</li>
-     *   <li>Access-Control-Allow-Headers: Standard headers plus custom X- headers</li>
-     *   <li>Access-Control-Max-Age: 3600 (cache preflight for 1 hour)</li>
+     *   <li>Access-Control-Allow-Origin: configured allowed origins</li>
+     *   <li>Access-Control-Allow-Methods: configured allowed methods</li>
+     *   <li>Access-Control-Allow-Headers: configured allowed headers</li>
+     *   <li>Access-Control-Max-Age: configured max age</li>
      * </ul>
      *
      * @param resp the HTTP response
      */
     private void addCorsHeaders(HttpServletResponse resp) {
-        resp.setHeader("Access-Control-Allow-Origin", "*");
-        resp.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-        resp.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Event-Id, X-Timestamp, X-Stage");
-        resp.setHeader("Access-Control-Max-Age", "3600");
+        resp.setHeader("Access-Control-Allow-Origin", allowedOrigins);
+        resp.setHeader("Access-Control-Allow-Methods", allowedMethods);
+        resp.setHeader("Access-Control-Allow-Headers", allowedHeaders);
+        resp.setHeader("Access-Control-Max-Age", maxAge);
     }
 
     /**
