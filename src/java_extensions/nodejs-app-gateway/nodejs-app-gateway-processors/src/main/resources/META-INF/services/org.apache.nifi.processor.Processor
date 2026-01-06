@@ -1,1 +1,2 @@
 org.nocodenation.nifi.nodejsapp.gateway.ReceiveFromNodeJSApp
+org.nocodenation.nifi.nodejsapp.gateway.RespondWithTimestamp
