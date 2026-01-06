@@ -121,6 +121,26 @@ public interface NodeJSAppAPIGateway extends ControllerService {
         throws EndpointAlreadyRegisteredException;
 
     /**
+     * Registers an endpoint pattern with custom response configuration.
+     *
+     * <p>This method allows processors to configure the HTTP response that will be sent
+     * back to clients when requests are successfully queued. This is useful for queue-based
+     * processors that want to customize the immediate response.</p>
+     *
+     * @param pattern endpoint pattern to register (must start with '/')
+     * @param handler callback to process incoming requests (null for queue-based processing)
+     * @param responseStatusCode HTTP status code to return when queuing (default: 202)
+     * @param responseBody response body to return when queuing (null for default "{\"status\":\"accepted\"}")
+     * @throws EndpointAlreadyRegisteredException if the pattern is already registered by another processor
+     * @see #registerEndpoint(String, EndpointHandler)
+     */
+    default void registerEndpoint(String pattern, EndpointHandler handler, int responseStatusCode, String responseBody)
+        throws EndpointAlreadyRegisteredException {
+        // Default implementation for backwards compatibility - just delegates to the basic method
+        registerEndpoint(pattern, handler);
+    }
+
+    /**
      * Unregisters a previously registered endpoint (Java processors only).
      *
      * <p>Processors call this method during {@code @OnStopped} to clean up their endpoint

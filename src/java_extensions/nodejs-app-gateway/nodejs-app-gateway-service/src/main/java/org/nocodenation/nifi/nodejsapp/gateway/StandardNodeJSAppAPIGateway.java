@@ -272,12 +272,26 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
 
     @Override
     public void registerEndpoint(String pattern, EndpointHandler handler) throws EndpointAlreadyRegisteredException {
+        registerEndpoint(pattern, handler, 202, null);
+    }
+
+    /**
+     * Registers an endpoint with custom response configuration.
+     *
+     * @param pattern endpoint pattern (e.g., /api/users/:userId)
+     * @param handler handler function (null for queue-based processing)
+     * @param responseStatusCode HTTP status code to return when queuing (default: 202)
+     * @param responseBody response body to return when queuing (null for default)
+     * @throws EndpointAlreadyRegisteredException if pattern already registered
+     */
+    public void registerEndpoint(String pattern, EndpointHandler handler, int responseStatusCode, String responseBody)
+            throws EndpointAlreadyRegisteredException {
         if (endpointRegistry.containsKey(pattern)) {
             throw new EndpointAlreadyRegisteredException("Endpoint pattern already registered: " + pattern);
         }
 
         LinkedBlockingQueue<GatewayRequest> queue = new LinkedBlockingQueue<>(maxQueueSize);
-        EndpointRegistration registration = new EndpointRegistration(handler, queue);
+        EndpointRegistration registration = new EndpointRegistration(handler, queue, responseStatusCode, responseBody);
         endpointRegistry.put(pattern, registration);
         metricsRegistry.put(pattern, new EndpointMetrics());
 
@@ -396,6 +410,14 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
     }
 
     /**
+     * Gets the endpoint registration for a pattern (for internal use by servlets).
+     * This allows access to response configuration.
+     */
+    public EndpointRegistration getEndpointRegistration(String pattern) {
+        return endpointRegistry.get(pattern);
+    }
+
+    /**
      * Gets configuration values for servlets.
      */
     public long getMaxRequestSize() {
@@ -488,10 +510,19 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
     public static class EndpointRegistration {
         public final EndpointHandler handler;
         public final LinkedBlockingQueue<GatewayRequest> queue;
+        public final int responseStatusCode;
+        public final String responseBody;
 
         public EndpointRegistration(EndpointHandler handler, LinkedBlockingQueue<GatewayRequest> queue) {
+            this(handler, queue, 202, null);
+        }
+
+        public EndpointRegistration(EndpointHandler handler, LinkedBlockingQueue<GatewayRequest> queue,
+                                   int responseStatusCode, String responseBody) {
             this.handler = handler;
             this.queue = queue;
+            this.responseStatusCode = responseStatusCode;
+            this.responseBody = responseBody;
         }
     }
 }

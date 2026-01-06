@@ -168,10 +168,12 @@ public class ReceiveFromNodeJSApp extends AbstractProcessor {
             }
         }
 
-        // Register all endpoint patterns with null handler - this tells the gateway to use queue-based approach
+        // Register all endpoint patterns with null handler and custom response configuration
         for (String pattern : endpointPatterns) {
-            gateway.registerEndpoint(pattern, null);
-            getLogger().info("Registered endpoint pattern '{}' with gateway on port {}", pattern, gateway.getGatewayPort());
+            gateway.registerEndpoint(pattern, null, responseStatusCode, responseBody);
+            getLogger().info("Registered endpoint pattern '{}' with gateway on port {} (status: {}, body: {})",
+                    pattern, gateway.getGatewayPort(), responseStatusCode,
+                    responseBody != null ? "configured" : "default");
         }
     }
 

@@ -142,7 +142,19 @@ public class GatewayServlet extends HttpServlet {
                 response = GatewayResponse.queueFull();
                 gateway.recordQueueFull(pattern);
             } else {
-                response = GatewayResponse.accepted();
+                // Use configured response from endpoint registration
+                StandardNodeJSAppAPIGateway.EndpointRegistration registration = gateway.getEndpointRegistration(pattern);
+                if (registration != null && registration.responseBody != null) {
+                    // Custom response body configured
+                    response = new GatewayResponse(registration.responseStatusCode, registration.responseBody,
+                            Map.of("Content-Type", "application/json"));
+                } else if (registration != null && registration.responseStatusCode != 202) {
+                    // Custom status code but no body
+                    response = new GatewayResponse(registration.responseStatusCode);
+                } else {
+                    // Default accepted response
+                    response = GatewayResponse.accepted();
+                }
                 gateway.updateQueueSize(pattern, queue.size());
                 long latency = System.currentTimeMillis() - startTime;
                 gateway.recordSuccess(pattern, latency);
