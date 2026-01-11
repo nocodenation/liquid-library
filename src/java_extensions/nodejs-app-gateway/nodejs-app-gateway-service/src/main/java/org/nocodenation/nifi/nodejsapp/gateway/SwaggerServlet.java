@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -108,22 +109,30 @@ public class SwaggerServlet extends HttpServlet {
     }
 
     /**
-     * Load a resource as a String
+     * Load a resource as a String with size limit enforced during reading.
+     * Uses CountingInputStream to prevent OOM from large bundled resources.
      */
     private String loadResourceAsString(String name) throws IOException {
+        final long maxResourceSize = 1_048_576; // 1MB limit for bundled resources
         String resourcePath = RESOURCE_BASE + name;
-        try (InputStream in = getClass().getResourceAsStream(resourcePath)) {
-            if (in == null) {
+        
+        try (InputStream rawIn = getClass().getResourceAsStream(resourcePath)) {
+            if (rawIn == null) {
                 throw new IOException("Resource not found: " + name);
             }
 
-            // Defensive check: reject files larger than 1MB
-            byte[] bytes = in.readAllBytes();
-            if (bytes.length > 1_048_576) {
-                throw new IOException("Resource too large: " + name + " (" + bytes.length + " bytes)");
+            // Use CountingInputStream to enforce size limit during reading (not after)
+            try (CountingInputStream in = new CountingInputStream(rawIn, maxResourceSize);
+                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
+                
+                return out.toString(StandardCharsets.UTF_8);
             }
-
-            return new String(bytes, StandardCharsets.UTF_8);
         }
     }
 

@@ -19,9 +19,12 @@ package org.nocodenation.nifi.nodejsapp;
 import org.apache.nifi.logging.ComponentLog;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.Executors;
@@ -51,6 +54,7 @@ public class ProcessMonitor {
 
     // Constants for strings
     private static final String HTTP_PROTOCOL = "http://";
+    private static final String HTTPS_PROTOCOL = "https://";
     private static final String THREAD_NAME_HEALTH_CHECK = "NodeJS-HealthCheck";
     private static final String HTTP_METHOD_GET = "GET";
 
@@ -63,6 +67,7 @@ public class ProcessMonitor {
     private final boolean autoRestart;
     private final int maxRestartAttempts;
     private final ComponentLog logger;
+    private final SSLContext sslContext;
 
     private ScheduledExecutorService executorService;
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -83,7 +88,8 @@ public class ProcessMonitor {
                           long healthCheckTimeoutMs,
                           boolean autoRestart,
                           int maxRestartAttempts,
-                          ComponentLog logger) {
+                          ComponentLog logger,
+                          SSLContext sslContext) {
         this.lifecycleManager = lifecycleManager;
         this.host = host;
         this.port = port;
@@ -93,6 +99,7 @@ public class ProcessMonitor {
         this.autoRestart = autoRestart;
         this.maxRestartAttempts = maxRestartAttempts;
         this.logger = logger;
+        this.sslContext = sslContext;
     }
 
     /**
@@ -221,11 +228,20 @@ public class ProcessMonitor {
     private boolean performHttpHealthCheck() {
         HttpURLConnection connection = null;
         try {
-            String healthUrl = String.format("%s%s:%d%s", HTTP_PROTOCOL, host, port, healthCheckPath);
+            // Use HTTPS when SSL context is configured, otherwise HTTP
+            String protocol = (sslContext != null) ? HTTPS_PROTOCOL : HTTP_PROTOCOL;
+            String healthUrl = String.format("%s%s:%d%s", protocol, host, port, healthCheckPath);
             logger.debug("Performing health check: {}", healthUrl);
 
             URL url = URI.create(healthUrl).toURL();
             connection = (HttpURLConnection) url.openConnection();
+            
+            // Configure SSL if available
+            if (sslContext != null && connection instanceof HttpsURLConnection) {
+                HttpsURLConnection httpsConn = (HttpsURLConnection) connection;
+                httpsConn.setSSLSocketFactory(sslContext.getSocketFactory());
+            }
+            
             connection.setRequestMethod(HTTP_METHOD_GET);
             connection.setConnectTimeout((int) healthCheckTimeoutMs);
             connection.setReadTimeout((int) healthCheckTimeoutMs);
@@ -235,7 +251,6 @@ public class ProcessMonitor {
 
             if (responseCode == 200) {
                 lastHealthCheckMessage.set("Healthy (HTTP 200)");
-                // Log success at DEBUG level to reduce log verbosity (happens every health check interval)
                 logger.debug("Health check passed: HTTP {}", responseCode);
                 return true;
             } else {
@@ -251,7 +266,24 @@ public class ProcessMonitor {
 
         } finally {
             if (connection != null) {
+                // Close input and error streams to prevent resource leaks
+                closeStreamQuietly(connection.getErrorStream());
+                try {
+                    closeStreamQuietly(connection.getInputStream());
+                } catch (IOException ignored) {
+                    // getInputStream() may throw if response was error
+                }
                 connection.disconnect();
+            }
+        }
+    }
+    
+    private void closeStreamQuietly(InputStream stream) {
+        if (stream != null) {
+            try {
+                stream.close();
+            } catch (IOException ignored) {
+                // Ignore close errors
             }
         }
     }

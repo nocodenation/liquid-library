@@ -31,9 +31,7 @@ import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
 
-import java.time.Instant;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -153,9 +151,7 @@ public class RespondWithTimestamp extends AbstractProcessor {
 
     private NodeJSAppAPIGateway gateway;
     private String endpointPattern;
-    private boolean includeFormatted;
-    private ZoneId timeZone;
-    private DateTimeFormatter formatter;
+    private TimestampEndpointHandler handler;
 
     // ========== LIFECYCLE METHODS ==========
 
@@ -178,23 +174,23 @@ public class RespondWithTimestamp extends AbstractProcessor {
                 .evaluateAttributeExpressions()
                 .getValue();
 
-        this.includeFormatted = context.getProperty(INCLUDE_FORMATTED).asBoolean();
+        boolean includeFormatted = context.getProperty(INCLUDE_FORMATTED).asBoolean();
 
         String timeZoneId = context.getProperty(TIME_ZONE).getValue();
+        ZoneId timeZone;
         try {
-            this.timeZone = ZoneId.of(timeZoneId);
-            this.formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
-                    .withZone(timeZone);
+            timeZone = ZoneId.of(timeZoneId);
         } catch (Exception e) {
             getLogger().error("Invalid time zone '{}', falling back to UTC: {}", timeZoneId, e.getMessage());
-            this.timeZone = ZoneId.of("UTC");
-            this.formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z")
-                    .withZone(ZoneId.of("UTC"));
+            timeZone = ZoneId.of("UTC");
         }
 
-        // Register endpoint with synchronous handler
+        // Create handler instance that implements EndpointHandler interface
+        this.handler = new TimestampEndpointHandler(includeFormatted, timeZone, getLogger());
+
+        // Register endpoint with handler instance
         try {
-            gateway.registerEndpoint(endpointPattern, this::handleTimestampRequest);
+            gateway.registerEndpoint(endpointPattern, handler);
             getLogger().info("Registered synchronous timestamp endpoint '{}' with gateway on port {}",
                     endpointPattern, gateway.getGatewayPort());
         } catch (EndpointAlreadyRegisteredException e) {
@@ -208,62 +204,6 @@ public class RespondWithTimestamp extends AbstractProcessor {
         if (gateway != null && endpointPattern != null) {
             gateway.unregisterEndpoint(endpointPattern);
             getLogger().info("Unregistered timestamp endpoint '{}'", endpointPattern);
-        }
-    }
-
-    // ========== REQUEST HANDLER ==========
-
-    /**
-     * Handles incoming timestamp requests and returns JSON response.
-     *
-     * <p>This method is called directly by the gateway servlet when a request
-     * arrives. It executes synchronously in the servlet thread, so it should
-     * complete quickly to avoid blocking the HTTP server.</p>
-     *
-     * @param request the incoming HTTP request
-     * @return GatewayResponse with timestamp data
-     */
-    private GatewayResponse handleTimestampRequest(GatewayRequest request) {
-        try {
-            Instant now = Instant.now();
-
-            // Build JSON response
-            StringBuilder json = new StringBuilder();
-            json.append("{\n");
-            json.append("  \"timestamp\": \"").append(now.toString()).append("\",\n");
-            json.append("  \"epochMillis\": ").append(now.toEpochMilli()).append(",\n");
-
-            if (includeFormatted) {
-                String formattedTime = formatter.format(now);
-                json.append("  \"formatted\": \"").append(formattedTime).append("\",\n");
-            }
-
-            json.append("  \"endpoint\": \"").append(request.getPath()).append("\",\n");
-            json.append("  \"method\": \"").append(request.getMethod()).append("\"\n");
-            json.append("}");
-
-            // Return successful response with JSON content type
-            Map<String, String> headers = new HashMap<>();
-            headers.put("Content-Type", "application/json");
-
-            getLogger().debug("Processed timestamp request for endpoint '{}' from {}",
-                    request.getPath(), request.getClientAddress());
-
-            return new GatewayResponse(200, json.toString(), headers);
-
-        } catch (Exception e) {
-            getLogger().error("Error generating timestamp response: {}", e.getMessage(), e);
-
-            // Return error response
-            String errorJson = String.format(
-                    "{\"error\": \"Failed to generate timestamp\", \"message\": \"%s\"}",
-                    e.getMessage().replace("\"", "\\\"")
-            );
-
-            Map<String, String> headers = new HashMap<>();
-            headers.put("Content-Type", "application/json");
-
-            return new GatewayResponse(500, errorJson, headers);
         }
     }
 

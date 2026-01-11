@@ -32,6 +32,13 @@
             <artifactId>nifi-api</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!-- SSL Context Service for HTTPS health checks -->
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-ssl-context-service-api</artifactId>
+            <version>${nifi.version}</version>
+            <scope>provided</scope>
+        </dependency>
 
         <!-- JSON Processing -->
         <dependency>

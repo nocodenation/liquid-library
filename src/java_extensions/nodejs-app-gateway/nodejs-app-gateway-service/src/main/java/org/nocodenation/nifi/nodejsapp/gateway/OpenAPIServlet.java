@@ -15,12 +15,12 @@ import java.io.IOException;
  */
 public class OpenAPIServlet extends HttpServlet {
 
-    private final OpenAPIGenerator generator;
     private final StandardNodeJSAppAPIGateway gateway;
+    private final OpenAPIGenerator generator;
 
-    public OpenAPIServlet(OpenAPIGenerator generator, StandardNodeJSAppAPIGateway gateway) {
-        this.generator = generator;
+    public OpenAPIServlet(StandardNodeJSAppAPIGateway gateway, OpenAPIGenerator generator) {
         this.gateway = gateway;
+        this.generator = generator;
     }
 
     @Override

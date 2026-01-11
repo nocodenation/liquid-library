@@ -29,15 +29,17 @@ import org.apache.nifi.controller.AbstractControllerService;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.processor.util.StandardValidators;
+import org.apache.nifi.ssl.SSLContextService;
 
 import java.io.File;
+import javax.net.ssl.SSLContext;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-@Tags({"nodejs", "node", "javascript", "application", "process", "management"})
+@Tags({"nocodenation", "nodejs", "node", "javascript", "application", "process", "management"})
 @CapabilityDescription("Manages the lifecycle of a Node.js application, providing start/stop control, " +
         "health monitoring, and log capture capabilities. The service launches the Node.js application " +
         "as a child process and monitors its health, with optional auto-restart on failure.")
@@ -220,6 +222,17 @@ public class StandardNodeJSApplicationManagerService extends AbstractControllerS
             .addValidator(StandardValidators.POSITIVE_INTEGER_VALIDATOR)
             .build();
 
+    // SSL Configuration for Health Checks
+    public static final PropertyDescriptor SSL_CONTEXT_SERVICE = new PropertyDescriptor.Builder()
+            .name("ssl-context-service")
+            .displayName("SSL Context Service")
+            .description("SSL Context Service for HTTPS health checks. If configured, health checks will use " +
+                    "HTTPS instead of HTTP to monitor the Node.js application.")
+            .required(false)
+            .identifiesControllerService(SSLContextService.class)
+            .dependsOn(ENABLE_HEALTH_CHECK, "true")
+            .build();
+
     private static final List<PropertyDescriptor> PROPERTY_DESCRIPTORS;
 
     static {
@@ -241,6 +254,7 @@ public class StandardNodeJSApplicationManagerService extends AbstractControllerS
         props.add(AUTO_RESTART);
         props.add(MAX_RESTART_ATTEMPTS);
         props.add(LOG_BUFFER_SIZE);
+        props.add(SSL_CONTEXT_SERVICE);
         PROPERTY_DESCRIPTORS = Collections.unmodifiableList(props);
     }
 
@@ -286,6 +300,18 @@ public class StandardNodeJSApplicationManagerService extends AbstractControllerS
                 final boolean autoRestart = context.getProperty(AUTO_RESTART).asBoolean();
                 final int maxRestartAttempts = context.getProperty(MAX_RESTART_ATTEMPTS).asInteger();
 
+                // Get SSL context if configured
+                final SSLContext sslContext;
+                if (context.getProperty(SSL_CONTEXT_SERVICE).isSet()) {
+                    final SSLContextService sslContextService = context.getProperty(SSL_CONTEXT_SERVICE)
+                            .asControllerService(SSLContextService.class);
+                    sslContext = sslContextService.createContext();
+                    getLogger().info("Health checks will use HTTPS with SSL Context Service");
+                } else {
+                    sslContext = null;
+                    getLogger().info("Health checks will use HTTP (no SSL Context Service configured)");
+                }
+
                 this.processMonitor = new ProcessMonitor(
                         lifecycleManager,
                         context.getProperty(APPLICATION_HOST).evaluateAttributeExpressions().getValue(),
@@ -295,7 +321,8 @@ public class StandardNodeJSApplicationManagerService extends AbstractControllerS
                         healthCheckTimeoutMs,
                         autoRestart,
                         maxRestartAttempts,
-                        getLogger()
+                        getLogger(),
+                        sslContext
                 );
 
                 processMonitor.start();

@@ -492,13 +492,13 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         context.setContextPath("/");
 
         // Register core servlets
-        context.addServlet(new ServletHolder(new InternalApiServlet(this)), "/_internal/*");
+        // Note: InternalApiServlet removed - Python processors can access ControllerServices directly
         context.addServlet(new ServletHolder(new MetricsServlet(this)), "/_metrics");
 
         // Register Swagger UI servlets if enabled
         if (swaggerEnabled) {
             openapiGenerator = new OpenAPIGenerator(getGatewayUrl());
-            context.addServlet(new ServletHolder(new OpenAPIServlet(openapiGenerator, this)), openapiPath);
+            context.addServlet(new ServletHolder(new OpenAPIServlet(this, openapiGenerator)), openapiPath);
             context.addServlet(new ServletHolder(new SwaggerServlet(this, openapiPath)), swaggerPath + "/*");
             getLogger().debug("Registered Swagger UI servlets: {} and {}", swaggerPath, openapiPath);
         }

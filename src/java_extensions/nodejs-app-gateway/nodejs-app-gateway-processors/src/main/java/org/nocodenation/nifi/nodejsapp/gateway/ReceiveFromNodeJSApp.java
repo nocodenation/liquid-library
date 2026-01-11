@@ -189,10 +189,75 @@ public class ReceiveFromNodeJSApp extends AbstractProcessor {
 
     @Override
     public void onTrigger(ProcessContext context, ProcessSession session) throws ProcessException {
-        // Poll all registered endpoint queues round-robin
-        GatewayRequest request = null;
-        String matchedPattern = null;
+        // Poll for next request from registered endpoints
+        PollResult pollResult = pollForRequest();
 
+        if (pollResult.interrupted) {
+            // Interrupted while polling - create failure FlowFile with error details
+            FlowFile errorFlowFile = session.create();
+            errorFlowFile = session.putAttribute(errorFlowFile, "error.type", "InterruptedException");
+            errorFlowFile = session.putAttribute(errorFlowFile, "error.message", "Interrupted while polling for requests");
+            session.transfer(errorFlowFile, REL_FAILURE);
+            getLogger().warn("Interrupted while polling for requests");
+            return;
+        }
+
+        if (pollResult.request == null) {
+            // No request available from any queue, yield
+            context.yield();
+            return;
+        }
+
+        try {
+            long requestId = requestCounter.incrementAndGet();
+
+            getLogger().debug("Processing request #{} for pattern '{}': {} {}",
+                    requestId, pollResult.matchedPattern, pollResult.request.getMethod(), pollResult.request.getPath());
+
+            // Create FlowFile from request
+            FlowFile flowFile = createFlowFileFromRequest(session, pollResult.request);
+
+            // Transfer to success
+            session.transfer(flowFile, REL_SUCCESS);
+            session.commitAsync();
+
+            getLogger().info("Successfully processed request #{} for pattern '{}': {} {}",
+                    requestId, pollResult.matchedPattern, pollResult.request.getMethod(), pollResult.request.getPath());
+
+        } catch (Exception e) {
+            getLogger().error("Failed to process request: {}", e.getMessage(), e);
+            // Create failure FlowFile with error details instead of just rolling back
+            FlowFile errorFlowFile = session.create();
+            errorFlowFile = session.putAttribute(errorFlowFile, "error.type", e.getClass().getSimpleName());
+            errorFlowFile = session.putAttribute(errorFlowFile, "error.message", e.getMessage());
+            errorFlowFile = session.putAttribute(errorFlowFile, "http.method", pollResult.request.getMethod());
+            errorFlowFile = session.putAttribute(errorFlowFile, "http.path", pollResult.request.getPath());
+            session.transfer(errorFlowFile, REL_FAILURE);
+        }
+    }
+
+    /**
+     * Result of polling for a request from endpoint queues.
+     */
+    private static class PollResult {
+        final GatewayRequest request;
+        final String matchedPattern;
+        final boolean interrupted;
+
+        PollResult(GatewayRequest request, String matchedPattern, boolean interrupted) {
+            this.request = request;
+            this.matchedPattern = matchedPattern;
+            this.interrupted = interrupted;
+        }
+    }
+
+    /**
+     * Polls all registered endpoint queues round-robin for the next available request.
+     * Extracted for clarity and testability.
+     *
+     * @return PollResult containing the request (or null), matched pattern, and interrupt status
+     */
+    private PollResult pollForRequest() {
         for (String pattern : endpointPatterns) {
             java.util.Queue<GatewayRequest> queue = gateway.getEndpointQueue(pattern);
 
@@ -212,44 +277,17 @@ public class ReceiveFromNodeJSApp extends AbstractProcessor {
 
             // Poll with short timeout
             try {
-                request = blockingQueue.poll(100, java.util.concurrent.TimeUnit.MILLISECONDS);
+                GatewayRequest request = blockingQueue.poll(100, java.util.concurrent.TimeUnit.MILLISECONDS);
                 if (request != null) {
-                    matchedPattern = pattern;
-                    break; // Found a request, process it
+                    return new PollResult(request, pattern, false);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                getLogger().warn("Interrupted while polling for requests");
-                return;
+                return new PollResult(null, null, true);
             }
         }
 
-        if (request == null) {
-            // No request available from any queue, yield
-            context.yield();
-            return;
-        }
-
-        try {
-            long requestId = requestCounter.incrementAndGet();
-
-            getLogger().debug("Processing request #{} for pattern '{}': {} {}",
-                    requestId, matchedPattern, request.getMethod(), request.getPath());
-
-            // Create FlowFile from request
-            FlowFile flowFile = createFlowFileFromRequest(session, request);
-
-            // Transfer to success
-            session.transfer(flowFile, REL_SUCCESS);
-            session.commitAsync();
-
-            getLogger().info("Successfully processed request #{} for pattern '{}': {} {}",
-                    requestId, matchedPattern, request.getMethod(), request.getPath());
-
-        } catch (Exception e) {
-            getLogger().error("Failed to process request: {}", e.getMessage(), e);
-            session.rollback();
-        }
+        return new PollResult(null, null, false);
     }
 
     /**
