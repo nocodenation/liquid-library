@@ -7,3 +7,6 @@ __pycache__/
 
 # Maven build artifacts
 target/
+
+# Documentation (generated/temporary)
+docs/

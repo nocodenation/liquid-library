@@ -270,8 +270,8 @@ public class ProcessMonitor {
                 closeStreamQuietly(connection.getErrorStream());
                 try {
                     closeStreamQuietly(connection.getInputStream());
-                } catch (IOException ignored) {
-                    // getInputStream() may throw if response was error
+                } catch (IOException e) {
+                    logger.debug("Could not close input stream (expected if response was error): {}", e.getMessage());
                 }
                 connection.disconnect();
             }
@@ -282,8 +282,8 @@ public class ProcessMonitor {
         if (stream != null) {
             try {
                 stream.close();
-            } catch (IOException ignored) {
-                // Ignore close errors
+            } catch (IOException e) {
+                logger.debug("Error closing stream: {}", e.getMessage());
             }
         }
     }

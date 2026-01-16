@@ -29,10 +29,11 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Jackson for JSON serialization -->
+        <!-- Jackson for JSON serialization (provided by NiFi) -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Testing -->

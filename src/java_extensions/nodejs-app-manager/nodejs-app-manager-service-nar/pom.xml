@@ -29,7 +29,6 @@
             <version>1.0.0</version>
             <type>nar</type>
         </dependency>
-        <!-- SSL Context Service is inherited via nodejs-app-manager-service-api-nar -> nifi-standard-services-api-nar -->
     </dependencies>
 
     <build>

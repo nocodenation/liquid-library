@@ -492,7 +492,6 @@ public class StandardNodeJSAppAPIGateway extends AbstractControllerService imple
         context.setContextPath("/");
 
         // Register core servlets
-        // Note: InternalApiServlet removed - Python processors can access ControllerServices directly
         context.addServlet(new ServletHolder(new MetricsServlet(this)), "/_metrics");
 
         // Register Swagger UI servlets if enabled
