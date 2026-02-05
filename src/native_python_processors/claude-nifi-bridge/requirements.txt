@@ -5,7 +5,7 @@ uvicorn[standard]>=0.27.0
 pydantic>=2.5.0
 
 # Claude Agent SDK
-claude-agent-sdk>=1.0.0
+claude-agent-sdk>=0.1.30
 
 # HTTP client for health checks
 httpx>=0.26.0
